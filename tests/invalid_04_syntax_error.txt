@@ -1,0 +1,4 @@
+num a = ;
+real b
+write(a + );
+read();

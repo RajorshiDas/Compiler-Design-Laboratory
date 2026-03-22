@@ -1,0 +1,5 @@
+num a;
+real b;
+bigreal x, y, z;
+num count = 5;
+real rate = 3.14;

@@ -1,0 +1,7 @@
+num a;
+text msg = "hello";
+real r = 3.5;
+
+a = msg;
+a = msg + 1;
+msg = r;
