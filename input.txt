@@ -1,63 +1,10 @@
-@@ This is a single line comment
-num age = 25
-real salary = 12.5
-"Hello World"
-accept
-reject
+num a;
+real b;
+bigreal c;
 
-@{ This is a
-multi-line comment
-test }@
+a = 5;
+b = a + 3.2;
+c = b + a;
 
-chk (age > 18)
-  read("You are adult")
-end chk
-
-repeat(1, 10, 1) {
-  write("Enter number")
-  AND
-  OR
-  NOT
-}
-
-@@ Switch case example using decide-when-otherwise
-num day = 3
-decide (day)
-  when 1
-    write("Monday")
-  when 2
-    write("Tuesday")
-  when 3
-    write("Wednesday")
-  when 4
-    write("Thursday")
-  when 5
-    write("Friday")
-  otherwise
-    write("Weekend")
-end
-
-fx calculateSum(num a, num b) -> num
-  send a + b
-end
-
-start() {
-  num x = 100
-  bigreal pi = 3.14159
-  
-  @@ Another switch example
-  chr grade = upper
-  decide (grade)
-    when upper
-      write("Excellent")
-    when lower
-      write("Good")
-    otherwise
-      write("Unknown")
-  end
-}
-@@{ This is a
-multi-line comment
-test }@{ This is a
-multi-line comment
-test }@
+write(a);
+read(b);

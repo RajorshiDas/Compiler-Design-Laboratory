@@ -1,25 +1,30 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "symtab.h"
 
 extern FILE* yyin;
-int yylex(void);
+int yyparse(void);
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        yyin = stdin;
-        printf("Reading from terminal. End with Ctrl+Z then Enter (Windows).\n");
-    } else {
+    int parse_status;
+
+    if (argc > 1) {
         yyin = fopen(argv[1], "r");
-        if (!yyin) {
+        if (yyin == NULL) {
             perror("Error opening input file");
             return 1;
         }
+    } else {
+        yyin = stdin;
     }
 
-    yylex();
+    printf("Starting parsing...\n");
+    parse_status = yyparse();
+    print_symbol_table();
 
     if (yyin && yyin != stdin) {
         fclose(yyin);
     }
-    return 0;
+
+    return parse_status == 0 ? 0 : 1;
 }

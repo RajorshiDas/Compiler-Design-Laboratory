@@ -1,86 +1,126 @@
 %{
 #include <stdio.h>
-int token_count = 0;
+#include <stdlib.h>
+#include <string.h>
+#include "parser.tab.h"
+
+static char *copy_lexeme(void) {
+    size_t length = strlen(yytext);
+    char *text = (char *)malloc(length + 1);
+
+    if (text == NULL) {
+        fprintf(stderr, "Out of memory while copying token text.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    strcpy(text, yytext);
+    return text;
+}
 %}
+
+%option noyywrap
+%option yylineno
+%option nounput
+%option noinput
 
 %x SCOMMENT MCOMMENT
 
-%%
-
-"#load"            { printf("key(%s)\n", yytext); token_count++; }
-"#set"             { printf("key(%s)\n", yytext); token_count++; }
-"num"              { printf("key(%s)\n", yytext); token_count++; }
-"real"             { printf("key(%s)\n", yytext); token_count++; }
-"bigreal"          { printf("key(%s)\n", yytext); token_count++; }
-ln\ num            { printf("key(%s)\n", yytext); token_count++; }
-"chr"              { printf("key(%s)\n", yytext); token_count++; }
-"logic"            { printf("key(%s)\n", yytext); token_count++; }
-"empty"            { printf("key(%s)\n", yytext); token_count++; }
-"stop"             { printf("key(%s)\n", yytext); token_count++; }
-"read"             { printf("key(%s)\n", yytext); token_count++; }
-"write"            { printf("key(%s)\n", yytext); token_count++; }
-"fx"               { printf("key(%s)\n", yytext); token_count++; }
-"chk"              { printf("key(%s)\n", yytext); token_count++; }
-end\ chk           { printf("key(%s)\n", yytext); token_count++; }
-"else_try"         { printf("key(%s)\n", yytext); token_count++; }
-end\ else_try      { printf("key(%s)\n", yytext); token_count++; }
-"then"             { printf("key(%s)\n", yytext); token_count++; }
-end\ then          { printf("key(%s)\n", yytext); token_count++; }
-"repeat"           { printf("key(%s)\n", yytext); token_count++; }
-"until"            { printf("key(%s)\n", yytext); token_count++; }
-"doing"            { printf("key(%s)\n", yytext); token_count++; }
-"skip"             { printf("key(%s)\n", yytext); token_count++; }
-"decide"           { printf("key(%s)\n", yytext); token_count++; }
-"when"             { printf("key(%s)\n", yytext); token_count++; }
-"otherwise"        { printf("key(%s)\n", yytext); token_count++; }
-"AND"              { printf("key(%s)\n", yytext); token_count++; }
-"OR"               { printf("key(%s)\n", yytext); token_count++; }
-"NOT"              { printf("key(%s)\n", yytext); token_count++; }
-"XOR"              { printf("key(%s)\n", yytext); token_count++; }
-"power"            { printf("key(%s)\n", yytext); token_count++; }
-"squart"           { printf("key(%s)\n", yytext); token_count++; }
-"upper"            { printf("key(%s)\n", yytext); token_count++; }
-"lower"            { printf("key(%s)\n", yytext); token_count++; }
-"log"              { printf("key(%s)\n", yytext); token_count++; }
-"sin"              { printf("key(%s)\n", yytext); token_count++; }
-"cos"              { printf("key(%s)\n", yytext); token_count++; }
-"tan"              { printf("key(%s)\n", yytext); token_count++; }
-"asin"             { printf("key(%s)\n", yytext); token_count++; }
-"acos"             { printf("key(%s)\n", yytext); token_count++; }
-"atan"             { printf("key(%s)\n", yytext); token_count++; }
-"send"             { printf("key(%s)\n", yytext); token_count++; }
-"start"            { printf("key(%s)\n", yytext); token_count++; }
-"text"             { printf("key(%s)\n", yytext); token_count++; }
-"accept"           { printf("key(%s)\n", yytext); token_count++; }
-"reject"           { printf("key(%s)\n", yytext); token_count++; }
-"end"              { printf("key(%s)\n", yytext); token_count++; }
-
-\"[^\"]*\"         { printf("STRING(%s)\n", yytext); token_count++; }
-
-[0-9]+\.[0-9]+     { printf("FLOAT(%s)\n", yytext); token_count++; }
-[0-9]+             { printf("INT(%s)\n", yytext); token_count++; }
-
-"@@"               { BEGIN(SCOMMENT); printf("COMMENT\n"); token_count++; }
-
-"@{"               { BEGIN(MCOMMENT); printf("COMMENT\n"); token_count++; }
-
-[ \t\r\n]+         { }
-
-[A-Za-z_][A-Za-z0-9_]*  { printf("VAR(%s)\n", yytext); token_count++; }
-.                  { }
-
-<SCOMMENT>[^\n]*   { }
-<SCOMMENT>\n       { BEGIN(INITIAL); }
-<SCOMMENT><<EOF>>  { BEGIN(INITIAL); }
-
-<MCOMMENT>"}@"     { BEGIN(INITIAL); }
-<MCOMMENT>.        { }
-<MCOMMENT>\n       { }
-<MCOMMENT><<EOF>>  { BEGIN(INITIAL); }
+DIGIT               [0-9]
+LETTER              [A-Za-z_]
+IDENTIFIER_PATTERN  {LETTER}({LETTER}|{DIGIT})*
+INTEGER_PATTERN     {DIGIT}+
+FLOAT_PATTERN       {DIGIT}+"."{DIGIT}+
+STRING_PATTERN      \"([^\\\n]|\\.)*\"
 
 %%
 
-int yywrap() {
-    printf("\nTotal tokens: %d\n", token_count);
-    return 1;
-}
+"//"                    { BEGIN(SCOMMENT); }
+"@@"                    { BEGIN(SCOMMENT); }
+"/*"                    { BEGIN(MCOMMENT); }
+"@{"                    { BEGIN(MCOMMENT); }
+
+<SCOMMENT>[^\n]*        { }
+<SCOMMENT>\n            { BEGIN(INITIAL); }
+<SCOMMENT><<EOF>>       { BEGIN(INITIAL); return 0; }
+
+<MCOMMENT>"*/"          { BEGIN(INITIAL); }
+<MCOMMENT>"}@"          { BEGIN(INITIAL); }
+<MCOMMENT>\n            { }
+<MCOMMENT>.             { }
+<MCOMMENT><<EOF>>       {
+                            fprintf(stderr, "Lexical error at line %d: unterminated multi-line comment\n", yylineno);
+                            return 0;
+                        }
+
+[ \t\r\n]+              { }
+
+"load"                  { return LOAD; }
+"set"                   { return SET; }
+"num"                   { return NUM_TYPE; }
+"real"                  { return REAL_TYPE; }
+"bigreal"               { return BIGREAL_TYPE; }
+"chr"                   { return CHR_TYPE; }
+"logic"                 { return LOGIC_TYPE; }
+"text"                  { return TEXT_TYPE; }
+"read"                  { return READ; }
+"write"                 { return WRITE; }
+"fx"                    { return FX; }
+"chk"                   { return CHK; }
+"else_try"              { return ELSE_TRY; }
+"then"                  { return THEN; }
+"repeat"                { return REPEAT; }
+"until"                 { return UNTIL; }
+"doing"                 { return DOING; }
+"skip"                  { return SKIP; }
+"decide"                { return DECIDE; }
+"when"                  { return WHEN; }
+"otherwise"             { return OTHERWISE; }
+"stop"                  { return STOP; }
+
+"=="                    { return EQ; }
+"!="                    { return NEQ; }
+"<="                    { return LE; }
+">="                    { return GE; }
+"="                     { return ASSIGN; }
+"<"                     { return LT; }
+">"                     { return GT; }
+"+"                     { return PLUS; }
+"-"                     { return MINUS; }
+"*"                     { return STAR; }
+"/"                     { return SLASH; }
+
+";"                     { return SEMICOLON; }
+","                     { return COMMA; }
+"("                     { return LPAREN; }
+")"                     { return RPAREN; }
+"{"                     { return LBRACE; }
+"}"                     { return RBRACE; }
+
+{FLOAT_PATTERN}         {
+                            yylval.floatval = (float)atof(yytext);
+                            return FLOAT_LITERAL;
+                        }
+
+{INTEGER_PATTERN}       {
+                            yylval.intval = atoi(yytext);
+                            return INT_LITERAL;
+                        }
+
+{STRING_PATTERN}        {
+                            yylval.strval = copy_lexeme();
+                            return STRING;
+                        }
+
+{IDENTIFIER_PATTERN}    {
+                            yylval.strval = copy_lexeme();
+                            return ID;
+                        }
+
+.                       {
+                            fprintf(stderr,
+                                    "Lexical error at line %d: invalid token '%s'\n",
+                                    yylineno,
+                                    yytext);
+                        }
+
+%%
