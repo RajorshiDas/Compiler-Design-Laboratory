@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "interpreter.h"
 #include "symtab.h"
 
@@ -12,6 +13,9 @@ typedef struct FunctionEntry {
 static int runtime_error_count = 0;
 static int stop_requested = 0;
 static int return_requested = 0;
+static int break_requested = 0;
+static int continue_requested = 0;
+static int loop_depth = 0;
 static int function_call_depth = 0;
 static ExprResult return_value = { TYPE_INVALID, 0, {0} };
 static FunctionEntry *function_table = NULL;
@@ -22,6 +26,7 @@ static const StmtNode *find_function(const char *name);
 static int count_arguments(const ArgumentList *arguments);
 static void free_function_table(void);
 static ExprResult execute_function_call(ExprNode *node);
+static ExprResult execute_builtin_function(ExprNode *node);
 
 static void report_runtime_error(const char *message) {
     fprintf(stderr, "Runtime error: %s\n", message);
@@ -89,6 +94,15 @@ static ExprResult make_logic_result(int value) {
     result.type = TYPE_LOGIC;
     result.has_value = 1;
     result.data.logic_value = value ? 1 : 0;
+    return result;
+}
+
+static ExprResult make_char_result(char value) {
+    ExprResult result = make_invalid_result();
+
+    result.type = TYPE_CHAR;
+    result.has_value = 1;
+    result.data.chr_value = value;
     return result;
 }
 
@@ -244,6 +258,18 @@ static int result_is_true(const ExprResult *value) {
     }
 }
 
+static ExprResult make_numeric_result_of_type(DataType type, double value) {
+    if (type == TYPE_BIGREAL) {
+        return make_bigreal_result(value);
+    }
+
+    if (type == TYPE_REAL) {
+        return make_real_result(value);
+    }
+
+    return make_num_result((long long)value);
+}
+
 static ExprResult evaluate_binary_expression(ExprNode *node) {
     ExprResult left;
     ExprResult right;
@@ -264,9 +290,24 @@ static ExprResult evaluate_binary_expression(ExprNode *node) {
     }
 
     if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
-        strcmp(op, "*") == 0 || strcmp(op, "/") == 0) {
+        strcmp(op, "*") == 0 || strcmp(op, "/") == 0 ||
+        strcmp(op, "%") == 0) {
         if (!is_numeric_type(left.type) || !is_numeric_type(right.type)) {
             report_runtime_error("arithmetic operators require numeric operands.");
+            free_expr_result(&left);
+            free_expr_result(&right);
+            return result;
+        }
+
+        if (strcmp(op, "%") == 0) {
+            if (left.type != TYPE_NUM || right.type != TYPE_NUM) {
+                report_runtime_error("modulus requires num operands.");
+            } else if (right.data.num_value == 0) {
+                report_runtime_error("division by zero.");
+            } else {
+                result = make_num_result(left.data.num_value % right.data.num_value);
+            }
+
             free_expr_result(&left);
             free_expr_result(&right);
             return result;
@@ -350,6 +391,22 @@ static ExprResult evaluate_binary_expression(ExprNode *node) {
         if (strcmp(op, "!=") == 0) {
             result.data.logic_value = !result.data.logic_value;
         }
+    } else if (strcmp(op, "AND") == 0 || strcmp(op, "OR") == 0) {
+        if (left.type != TYPE_LOGIC || right.type != TYPE_LOGIC) {
+            report_runtime_error("logical operators require logic operands.");
+        } else if (strcmp(op, "AND") == 0) {
+            result = make_logic_result(left.data.logic_value && right.data.logic_value);
+        } else {
+            result = make_logic_result(left.data.logic_value || right.data.logic_value);
+        }
+    } else if (strcmp(op, "XOR") == 0) {
+        if (left.type == TYPE_LOGIC && right.type == TYPE_LOGIC) {
+            result = make_logic_result((left.data.logic_value ? 1 : 0) ^ (right.data.logic_value ? 1 : 0));
+        } else if (left.type == TYPE_NUM && right.type == TYPE_NUM) {
+            result = make_num_result(left.data.num_value ^ right.data.num_value);
+        } else {
+            report_runtime_error("XOR requires two logic operands or two num operands.");
+        }
     } else {
         report_runtime_error("unsupported binary operator.");
     }
@@ -379,6 +436,10 @@ static void collect_functions(const StmtNode *node) {
             collect_functions(node->data.chk_stmt.else_branch);
         } else if (node->kind == STMT_REPEAT) {
             collect_functions(node->data.repeat_stmt.body);
+        } else if (node->kind == STMT_UNTIL) {
+            collect_functions(node->data.until_stmt.body);
+        } else if (node->kind == STMT_DOING) {
+            collect_functions(node->data.doing_stmt.body);
         } else if (node->kind == STMT_DECIDE) {
             const CaseNode *case_node = node->data.decide_stmt.cases;
 
@@ -430,6 +491,99 @@ static void free_function_table(void) {
     function_table = NULL;
 }
 
+static int is_builtin_function_name(const char *name) {
+    return strcmp(name, "power") == 0 ||
+           strcmp(name, "squart") == 0 ||
+           strcmp(name, "upper") == 0 ||
+           strcmp(name, "lower") == 0 ||
+           strcmp(name, "log") == 0 ||
+           strcmp(name, "sin") == 0 ||
+           strcmp(name, "cos") == 0 ||
+           strcmp(name, "tan") == 0 ||
+           strcmp(name, "asin") == 0 ||
+           strcmp(name, "acos") == 0 ||
+           strcmp(name, "atan") == 0;
+}
+
+static ExprResult execute_builtin_function(ExprNode *node) {
+    ExprResult first;
+    ExprResult second;
+    double first_value;
+    double second_value;
+
+    if (node == NULL || node->kind != EXPR_FUNCTION_CALL) {
+        return make_invalid_result();
+    }
+
+    if (strcmp(node->data.call.name, "power") == 0) {
+        if (node->data.call.arguments == NULL || node->data.call.arguments->next == NULL) {
+            report_runtime_error("power expects two arguments.");
+            return make_invalid_result();
+        }
+
+        first = evaluate_expression(node->data.call.arguments->expr);
+        second = evaluate_expression(node->data.call.arguments->next->expr);
+        if (!first.has_value || !second.has_value) {
+            free_expr_result(&first);
+            free_expr_result(&second);
+            return make_invalid_result();
+        }
+
+        first_value = expr_as_double(&first);
+        second_value = expr_as_double(&second);
+        free_expr_result(&first);
+        free_expr_result(&second);
+        return make_numeric_result_of_type(node->value_type, pow(first_value, second_value));
+    }
+
+    if (node->data.call.arguments == NULL) {
+        report_runtime_error("builtin function expects an argument.");
+        return make_invalid_result();
+    }
+
+    first = evaluate_expression(node->data.call.arguments->expr);
+    if (!first.has_value) {
+        free_expr_result(&first);
+        return make_invalid_result();
+    }
+
+    first_value = expr_as_double(&first);
+    free_expr_result(&first);
+
+    if (strcmp(node->data.call.name, "squart") == 0) {
+        return make_numeric_result_of_type(node->value_type, sqrt(first_value));
+    }
+    if (strcmp(node->data.call.name, "upper") == 0) {
+        return make_numeric_result_of_type(node->value_type, floor(first_value));
+    }
+    if (strcmp(node->data.call.name, "lower") == 0) {
+        return make_numeric_result_of_type(node->value_type, ceil(first_value));
+    }
+    if (strcmp(node->data.call.name, "log") == 0) {
+        return make_numeric_result_of_type(node->value_type, log(first_value));
+    }
+    if (strcmp(node->data.call.name, "sin") == 0) {
+        return make_numeric_result_of_type(node->value_type, sin(first_value));
+    }
+    if (strcmp(node->data.call.name, "cos") == 0) {
+        return make_numeric_result_of_type(node->value_type, cos(first_value));
+    }
+    if (strcmp(node->data.call.name, "tan") == 0) {
+        return make_numeric_result_of_type(node->value_type, tan(first_value));
+    }
+    if (strcmp(node->data.call.name, "asin") == 0) {
+        return make_numeric_result_of_type(node->value_type, asin(first_value));
+    }
+    if (strcmp(node->data.call.name, "acos") == 0) {
+        return make_numeric_result_of_type(node->value_type, acos(first_value));
+    }
+    if (strcmp(node->data.call.name, "atan") == 0) {
+        return make_numeric_result_of_type(node->value_type, atan(first_value));
+    }
+
+    return make_invalid_result();
+}
+
 static ExprResult execute_function_call(ExprNode *node) {
     const StmtNode *function_node;
     const ParameterList *parameter;
@@ -439,6 +593,10 @@ static ExprResult execute_function_call(ExprNode *node) {
     int saved_return_requested = return_requested;
     int scope_open = 0;
     int call_started = 0;
+
+    if (is_builtin_function_name(node->data.call.name)) {
+        return execute_builtin_function(node);
+    }
 
     function_node = find_function(node->data.call.name);
     if (function_node == NULL) {
@@ -525,6 +683,10 @@ ExprResult evaluate_expression(ExprNode *node) {
             return make_real_result(node->data.float_value);
         case EXPR_STRING_LITERAL:
             return make_text_result(node->data.string_value);
+        case EXPR_CHAR_LITERAL:
+            return make_char_result(node->data.char_value);
+        case EXPR_BOOL_LITERAL:
+            return make_logic_result(node->data.bool_value);
         case EXPR_VARIABLE:
             if (get_symbol_value(node->data.identifier, &value) == -1) {
                 report_runtime_error("use of undeclared variable.");
@@ -578,6 +740,25 @@ ExprResult evaluate_expression(ExprNode *node) {
                 ExprResult logic_result = make_logic_result(!result_is_true(&result));
                 free_expr_result(&result);
                 return logic_result;
+            }
+
+            if (strcmp(node->data.unary.op, "ABS") == 0) {
+                if (!is_numeric_type(result.type)) {
+                    report_runtime_error("absolute value requires a numeric operand.");
+                    free_expr_result(&result);
+                    return make_invalid_result();
+                }
+
+                if (result.type == TYPE_NUM) {
+                    if (result.data.num_value < 0) {
+                        result.data.num_value = -result.data.num_value;
+                    }
+                } else if (result.type == TYPE_BIGREAL) {
+                    result.data.bigreal_value = fabs(result.data.bigreal_value);
+                } else {
+                    result.data.real_value = fabs(result.data.real_value);
+                }
+                return result;
             }
 
             report_runtime_error("unsupported unary operator.");
@@ -717,16 +898,22 @@ static void execute_read_statement(StmtNode *node) {
 }
 
 static void execute_write_statement(StmtNode *node) {
-    ExprResult value = evaluate_expression(node->data.write_stmt.value);
+    ExprList *item = node->data.write_stmt.values;
 
-    if (!value.has_value) {
+    while (item != NULL) {
+        ExprResult value = evaluate_expression(item->expr);
+
+        if (!value.has_value) {
+            free_expr_result(&value);
+            return;
+        }
+
+        print_expr_result(&value);
         free_expr_result(&value);
-        return;
+        item = item->next;
     }
 
-    print_expr_result(&value);
     printf("\n");
-    free_expr_result(&value);
 }
 
 static void execute_if_statement(StmtNode *node) {
@@ -749,18 +936,63 @@ static void execute_if_statement(StmtNode *node) {
 }
 
 static void execute_repeat_statement(StmtNode *node) {
-    ExprResult condition;
+    loop_depth++;
 
-    do {
-        execute_statement_list(node->data.repeat_stmt.body);
-        if (stop_requested) {
-            return;
-        }
+    while (!stop_requested && !return_requested) {
+        ExprResult condition = evaluate_expression(node->data.repeat_stmt.condition);
+        ExprResult update_value;
 
-        condition = evaluate_expression(node->data.repeat_stmt.condition);
         if (!condition.has_value) {
             free_expr_result(&condition);
-            return;
+            break;
+        }
+
+        if (!result_is_true(&condition)) {
+            free_expr_result(&condition);
+            break;
+        }
+
+        free_expr_result(&condition);
+        execute_statement_list(node->data.repeat_stmt.body);
+        if (stop_requested || return_requested) {
+            break;
+        }
+
+        if (break_requested) {
+            break_requested = 0;
+            break;
+        }
+
+        continue_requested = 0;
+        update_value = evaluate_expression(node->data.repeat_stmt.update);
+        if (!update_value.has_value) {
+            free_expr_result(&update_value);
+            break;
+        }
+
+        if (!check_assignment(node->data.repeat_stmt.iterator, update_value.type) ||
+            !set_symbol_value(node->data.repeat_stmt.iterator, &update_value)) {
+            report_runtime_error("invalid repeat-loop update.");
+            free_expr_result(&update_value);
+            break;
+        }
+
+        free_expr_result(&update_value);
+    }
+
+    continue_requested = 0;
+    loop_depth--;
+}
+
+static void execute_until_statement(StmtNode *node) {
+    loop_depth++;
+
+    while (!stop_requested && !return_requested) {
+        ExprResult condition = evaluate_expression(node->data.until_stmt.condition);
+
+        if (!condition.has_value) {
+            free_expr_result(&condition);
+            break;
         }
 
         if (result_is_true(&condition)) {
@@ -769,7 +1001,51 @@ static void execute_repeat_statement(StmtNode *node) {
         }
 
         free_expr_result(&condition);
-    } while (!stop_requested);
+        execute_statement_list(node->data.until_stmt.body);
+        if (break_requested) {
+            break_requested = 0;
+            break;
+        }
+        continue_requested = 0;
+    }
+
+    continue_requested = 0;
+    loop_depth--;
+}
+
+static void execute_doing_statement(StmtNode *node) {
+    loop_depth++;
+
+    do {
+        ExprResult condition;
+
+        execute_statement_list(node->data.doing_stmt.body);
+        if (stop_requested || return_requested) {
+            break;
+        }
+
+        if (break_requested) {
+            break_requested = 0;
+            break;
+        }
+
+        continue_requested = 0;
+        condition = evaluate_expression(node->data.doing_stmt.condition);
+        if (!condition.has_value) {
+            free_expr_result(&condition);
+            break;
+        }
+
+        if (result_is_true(&condition)) {
+            free_expr_result(&condition);
+            break;
+        }
+
+        free_expr_result(&condition);
+    } while (!stop_requested && !return_requested);
+
+    continue_requested = 0;
+    loop_depth--;
 }
 
 static void execute_block_statement(StmtNode *node) {
@@ -792,7 +1068,7 @@ static void execute_decide_statement(StmtNode *node) {
     while (case_node != NULL) {
         ExprResult case_value = evaluate_expression(case_node->condition);
 
-        if (case_value.has_value && result_is_true(&case_value)) {
+        if (case_value.has_value && values_equal(&selector, &case_value)) {
             free_expr_result(&case_value);
             free_expr_result(&selector);
             execute_statement_list(case_node->body);
@@ -813,7 +1089,8 @@ static void execute_decide_statement(StmtNode *node) {
 static int execute_statement_list(StmtNode *node) {
     int errors_before = runtime_error_count;
 
-    while (node != NULL && !stop_requested && !return_requested) {
+    while (node != NULL && !stop_requested && !return_requested &&
+           !break_requested && !continue_requested) {
         switch (node->kind) {
             case STMT_DECLARATION:
                 execute_declaration(node);
@@ -836,20 +1113,38 @@ static int execute_statement_list(StmtNode *node) {
             case STMT_REPEAT:
                 execute_repeat_statement(node);
                 break;
+            case STMT_UNTIL:
+                execute_until_statement(node);
+                break;
+            case STMT_DOING:
+                execute_doing_statement(node);
+                break;
             case STMT_DECIDE:
                 execute_decide_statement(node);
                 break;
-            case STMT_SKIP:
             case STMT_FUNCTION_DEF:
                 break;
+            case STMT_SKIP:
+                if (loop_depth <= 0) {
+                    report_runtime_error("skip used outside a loop.");
+                } else {
+                    continue_requested = 1;
+                }
+                break;
             case STMT_STOP:
-                stop_requested = 1;
+                if (loop_depth <= 0) {
+                    stop_requested = 1;
+                } else {
+                    break_requested = 1;
+                }
                 break;
             case STMT_RETURN: {
                 ExprResult value;
 
                 if (function_call_depth == 0) {
-                    report_runtime_error("return statement used outside a function.");
+                    value = evaluate_expression(node->data.return_stmt.value);
+                    free_expr_result(&value);
+                    stop_requested = 1;
                     break;
                 }
 
@@ -883,6 +1178,9 @@ int interpret_program(const Program *program) {
     runtime_error_count = 0;
     stop_requested = 0;
     return_requested = 0;
+    break_requested = 0;
+    continue_requested = 0;
+    loop_depth = 0;
     function_call_depth = 0;
     clear_symbol_table();
     free_function_table();

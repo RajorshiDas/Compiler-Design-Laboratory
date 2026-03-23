@@ -1,0 +1,17 @@
+Test File: invalid_03_invalid_assignment.txt
+Exit Code: 1
+
+compiler_report_check.exe : Semantic error: cannot assign text to num variable 'a'.
+At line:12 char:19
++         $output = & $compiler $test.FullName 2>&1 | Out-String
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Semantic error:...m variable 'a'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Semantic error: invalid arithmetic between text and num.
+Starting parsing...
+Parsing completed with 2 semantic error(s).
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------

@@ -1,10 +1,13 @@
-// Invalid test: function return type used in an incompatible assignment.
-// Expected behavior: semantic error assigning returned text value to num variable.
+@@ Invalid test: function declared return type does not match sent value.
+@@ Expected behavior: semantic error because the function is declared num but sends text.
 
-fx greet(text name) {
-    return name;
+#load mathLib.fx
+start() -> empty
+{
+    fx greet(text name) -> num
+    {
+        send name;
+    }
+
+    send 0;
 }
-
-num value;
-
-value = greet("compiler");

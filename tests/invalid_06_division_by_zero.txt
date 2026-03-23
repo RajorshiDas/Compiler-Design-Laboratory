@@ -1,9 +1,14 @@
-// Invalid test: runtime division by zero.
-// Expected behavior: runtime error during evaluation of a / b.
+@@ Invalid test: runtime division by zero.
+@@ Expected behavior: runtime error during evaluation of a / b.
 
-num a = 10;
-num b = 0;
-num c;
+#load mathLib.fx
+start() -> empty
+{
+    num a = 10;
+    num b = 0;
+    num c;
 
-c = a / b;
-write(c);
+    c = a / b;
+    write(c);
+    send 0;
+}

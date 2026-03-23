@@ -1,11 +1,17 @@
-// Invalid test: wrong number of function arguments.
-// Expected behavior: semantic error for calling add with one argument instead of two.
+@@ Invalid test: wrong number of function arguments.
+@@ Expected behavior: semantic error for calling addNumbers with one argument instead of two.
 
-fx add(num x, num y) {
-    return x + y;
+#load mathLib.fx
+start() -> empty
+{
+    num result;
+
+    fx addNumbers(num x, num y) -> num
+    {
+        send x + y;
+    }
+
+    result = addNumbers(1);
+    write(result);
+    send 0;
 }
-
-num result;
-
-result = add(1);
-write(result);

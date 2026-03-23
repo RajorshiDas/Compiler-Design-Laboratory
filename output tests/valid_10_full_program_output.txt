@@ -1,0 +1,94 @@
+Test File: valid_10_full_program.txt
+Exit Code: 0
+
+Starting parsing...
+
+AST:
+Declaration: i (num)
+  Initializer:
+    IntLiteral: 1
+Declaration: value (num)
+Function: square
+Repeat:
+  Iterator: i
+  Condition:
+    BinaryExpr: <=
+      Variable: i
+      IntLiteral: 3
+  Update:
+    BinaryExpr: +
+      Variable: i
+      IntLiteral: 1
+  Body:
+    Block:
+      Assignment: value
+        FunctionCall: square
+      Write:
+        StringLiteral: "square = "
+        Variable: value
+Decide
+Return:
+  IntLiteral: 0
+
+Optimized AST:
+Declaration: i (num)
+  Initializer:
+    IntLiteral: 1
+Declaration: value (num)
+Function: square
+Repeat:
+  Iterator: i
+  Condition:
+    BinaryExpr: <=
+      Variable: i
+      IntLiteral: 3
+  Update:
+    BinaryExpr: +
+      Variable: i
+      IntLiteral: 1
+  Body:
+    Block:
+      Assignment: value
+        FunctionCall: square
+      Write:
+        StringLiteral: "square = "
+        Variable: value
+Decide
+Return:
+  IntLiteral: 0
+
+Three-Address Code IR:
+i = 1
+L1:
+param i
+t1 = call square, 1
+value = t1
+write "square = "
+write value
+t2 = i + 1
+i = t2
+t3 = i <= 3
+ifFalse t3 goto L2
+goto L1
+L2:
+t4 = i == 4
+ifFalse t4 goto L4
+write "finished"
+goto L3
+L4:
+write "unexpected"
+L3:
+return 0
+
+Generated C code written to generated.c
+square = 1
+square = 4
+square = 9
+finished
+Parsing, semantic analysis, and interpretation completed successfully.
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------
+i                    num        4 0     
+value                num        9 0

@@ -5,6 +5,7 @@ typedef Program ASTNode;
 #include "ir.h"
 #include "codegen.h"
 #include "interpreter.h"
+#include "optimize.h"
 #include "symtab.h"
 
 extern FILE *yyin;
@@ -21,6 +22,12 @@ static void print_indent(int level) {
 }
 
 static void print_expression(const ExprNode *expr, int indent);
+static void print_expression_list(const ExprList *list, int indent) {
+    while (list != NULL) {
+        print_expression(list->expr, indent);
+        list = list->next;
+    }
+}
 
 static void print_statement_list(const StmtNode *stmt, int indent) {
     while (stmt != NULL) {
@@ -51,7 +58,7 @@ static void print_statement_list(const StmtNode *stmt, int indent) {
             case STMT_WRITE:
                 print_indent(indent);
                 printf("Write:\n");
-                print_expression(stmt->data.write_stmt.value, indent + 1);
+                print_expression_list(stmt->data.write_stmt.values, indent + 1);
                 break;
 
             case STMT_BLOCK:
@@ -80,11 +87,38 @@ static void print_statement_list(const StmtNode *stmt, int indent) {
                 print_indent(indent);
                 printf("Repeat:\n");
                 print_indent(indent + 1);
+                printf("Iterator: %s\n", stmt->data.repeat_stmt.iterator);
+                print_indent(indent + 1);
+                printf("Condition:\n");
+                print_expression(stmt->data.repeat_stmt.condition, indent + 2);
+                print_indent(indent + 1);
+                printf("Update:\n");
+                print_expression(stmt->data.repeat_stmt.update, indent + 2);
+                print_indent(indent + 1);
                 printf("Body:\n");
                 print_statement_list(stmt->data.repeat_stmt.body, indent + 2);
+                break;
+
+            case STMT_UNTIL:
+                print_indent(indent);
+                printf("Until:\n");
+                print_indent(indent + 1);
+                printf("Condition:\n");
+                print_expression(stmt->data.until_stmt.condition, indent + 2);
+                print_indent(indent + 1);
+                printf("Body:\n");
+                print_statement_list(stmt->data.until_stmt.body, indent + 2);
+                break;
+
+            case STMT_DOING:
+                print_indent(indent);
+                printf("Doing:\n");
+                print_indent(indent + 1);
+                printf("Body:\n");
+                print_statement_list(stmt->data.doing_stmt.body, indent + 2);
                 print_indent(indent + 1);
                 printf("Until:\n");
-                print_expression(stmt->data.repeat_stmt.condition, indent + 2);
+                print_expression(stmt->data.doing_stmt.condition, indent + 2);
                 break;
 
             case STMT_DECIDE:
@@ -144,6 +178,16 @@ static void print_expression(const ExprNode *expr, int indent) {
         case EXPR_STRING_LITERAL:
             print_indent(indent);
             printf("StringLiteral: \"%s\"\n", expr->data.string_value);
+            break;
+
+        case EXPR_CHAR_LITERAL:
+            print_indent(indent);
+            printf("CharLiteral: '%c'\n", expr->data.char_value);
+            break;
+
+        case EXPR_BOOL_LITERAL:
+            print_indent(indent);
+            printf("BoolLiteral: %s\n", expr->data.bool_value ? "true" : "false");
             break;
 
         case EXPR_VARIABLE:
@@ -207,6 +251,9 @@ int main(int argc, char *argv[]) {
 
     if (parse_status == 0 && get_semantic_error_count() == 0 && parsed_program != NULL) {
         print_ast(parsed_program);
+        optimize_program(parsed_program);
+        printf("\nOptimized AST:\n");
+        print_statement_list(parsed_program->statements, 0);
         ir_code = generate_ir(parsed_program);
         printf("\nThree-Address Code IR:\n");
         print_ir(ir_code);

@@ -9,6 +9,7 @@ typedef enum DataType {
     TYPE_CHAR,
     TYPE_LOGIC,
     TYPE_TEXT,
+    TYPE_EMPTY,
     TYPE_ERROR
 } DataType;
 
@@ -58,6 +59,7 @@ int set_symbol_value(const char *name, const ExprResult *expr_value);
 void free_runtime_value(RuntimeValue *value);
 void free_expr_result(ExprResult *expr);
 char *decode_string_literal(const char *lexeme);
+char decode_char_literal(const char *lexeme);
 void print_expr_result(const ExprResult *expr);
 void print_symbol_table(void);
 

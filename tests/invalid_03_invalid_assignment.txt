@@ -1,10 +1,15 @@
-// Invalid test: type errors in assignment and arithmetic.
-// Expected behavior:
-// - cannot assign text to num
-// - invalid arithmetic between text and num
+@@ Invalid test: incompatible assignment and invalid arithmetic.
+@@ Expected behavior:
+@@ - cannot assign text to num
+@@ - invalid arithmetic between text and num
 
-num a;
-text msg = "hello";
+#load mathLib.fx
+start() -> empty
+{
+    num a;
+    text msg = "hello";
 
-a = msg;
-a = msg + 1;
+    a = msg;
+    a = msg + 1;
+    send 0;
+}

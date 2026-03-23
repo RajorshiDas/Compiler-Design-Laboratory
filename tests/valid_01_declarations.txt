@@ -1,16 +1,24 @@
-// Valid test: declarations and default initialization.
-// Expected AST behavior: declaration nodes with and without initializers.
-// Expected interpreter output:
-// 0
-// 10
-// 3.5
-// hello
+@@ Valid test: report-style declarations, logic literals, and character values.
+@@ Expected interpreter output:
+@@ 10
+@@ 3.5
+@@ true
+@@ Z
+@@ hello
 
-num a, b = 10;
-real r = 3.5;
-text msg = "hello";
+#load mathLib.fx
+start() -> empty;
+{
+    num a = 10;
+    real r = 3.5;
+    logic ok = true;
+    chr letter = 'Z';
+    text msg = "hello";
 
-write(a);
-write(b);
-write(r);
-write(msg);
+    write(a);
+    write(r);
+    write(ok);
+    write(letter);
+    write(msg);
+    send 0;
+}

@@ -7,6 +7,8 @@ typedef enum ExprKind {
     EXPR_INT_LITERAL,
     EXPR_FLOAT_LITERAL,
     EXPR_STRING_LITERAL,
+    EXPR_CHAR_LITERAL,
+    EXPR_BOOL_LITERAL,
     EXPR_VARIABLE,
     EXPR_BINARY,
     EXPR_UNARY,
@@ -21,6 +23,8 @@ typedef enum StmtKind {
     STMT_BLOCK,
     STMT_CHK,
     STMT_REPEAT,
+    STMT_UNTIL,
+    STMT_DOING,
     STMT_DECIDE,
     STMT_FUNCTION_DEF,
     STMT_FUNCTION_DECL = STMT_FUNCTION_DEF,
@@ -63,14 +67,16 @@ struct ExprNode {
         long long int_value;
         double float_value;
         char *string_value;
+        char char_value;
+        int bool_value;
         char *identifier;
         struct {
-            char op[3];
+            char op[8];
             ExprNode *left;
             ExprNode *right;
         } binary;
         struct {
-            char op[3];
+            char op[8];
             ExprNode *operand;
         } unary;
         struct {
@@ -98,7 +104,7 @@ struct StmtNode {
             SymbolType declared_type;
         } read_stmt;
         struct {
-            ExprNode *value;
+            ExprList *values;
         } write_stmt;
         struct {
             StmtNode *statements;
@@ -109,9 +115,19 @@ struct StmtNode {
             StmtNode *else_branch;
         } chk_stmt;
         struct {
+            char *iterator;
+            ExprNode *condition;
+            ExprNode *update;
+            StmtNode *body;
+        } repeat_stmt;
+        struct {
+            ExprNode *condition;
+            StmtNode *body;
+        } until_stmt;
+        struct {
             StmtNode *body;
             ExprNode *condition;
-        } repeat_stmt;
+        } doing_stmt;
         struct {
             ExprNode *selector;
             CaseNode *cases;
@@ -136,6 +152,8 @@ struct Program {
 ExprNode *create_int_literal_expr(long long value);
 ExprNode *create_float_literal_expr(double value);
 ExprNode *create_string_literal_expr(char *value);
+ExprNode *create_char_literal_expr(char value);
+ExprNode *create_bool_literal_expr(int value);
 ExprNode *create_variable_expr(char *name, SymbolType value_type);
 ExprNode *create_binary_expr(const char *op, ExprNode *left, ExprNode *right, SymbolType value_type);
 ExprNode *create_unary_expr(const char *op, ExprNode *operand, SymbolType value_type);
@@ -159,10 +177,12 @@ CaseNode *append_case_list(CaseNode *list, CaseNode *item);
 StmtNode *create_declaration_stmt(SymbolType declared_type, char *name, ExprNode *initializer);
 StmtNode *create_assignment_stmt(char *name, ExprNode *value);
 StmtNode *create_read_stmt(char *name, SymbolType declared_type);
-StmtNode *create_write_stmt(ExprNode *value);
+StmtNode *create_write_stmt(ExprList *values);
 StmtNode *create_block_stmt(StmtNode *statements);
 StmtNode *create_chk_stmt(ExprNode *condition, StmtNode *then_branch, StmtNode *else_branch);
-StmtNode *create_repeat_stmt(StmtNode *body, ExprNode *condition);
+StmtNode *create_repeat_stmt(char *iterator, ExprNode *condition, ExprNode *update, StmtNode *body);
+StmtNode *create_until_stmt(ExprNode *condition, StmtNode *body);
+StmtNode *create_doing_stmt(StmtNode *body, ExprNode *condition);
 StmtNode *create_decide_stmt(ExprNode *selector, CaseNode *cases, StmtNode *otherwise_branch);
 StmtNode *create_function_decl_stmt(char *name, ParameterList *parameters, StmtNode *body, SymbolType return_type);
 StmtNode *create_function_def_stmt(char *name, ParamNode *parameters, StmtNode *body, SymbolType return_type);

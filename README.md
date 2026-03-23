@@ -48,8 +48,8 @@ The lexer recognizes:
 It also:
 
 - ignores whitespace
-- supports single-line comments using `//` or `@@`
-- supports multi-line comments using `/* ... */` or `@{ ... }@`
+- supports single-line comments using `@@`
+- supports multi-line comments using `@{ ... }@`
 - reports invalid tokens with line numbers
 
 ### Syntax Analysis
@@ -135,13 +135,13 @@ Build:
 ```bash
 bison -d -o parser.tab.c parser.y
 flex -o lex.yy.c scanner.l
-gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c main.c -lfl
+gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c -lfl
 ```
 
 If your Flex installation works without `-lfl`, this may also work:
 
 ```bash
-gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c main.c
+gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c
 ```
 
 ### Windows with MinGW or MSYS2
@@ -153,7 +153,7 @@ Build:
 ```powershell
 bison -d -o parser.tab.c parser.y
 flex -o lex.yy.c scanner.l
-gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c main.c
+gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c
 ```
 
 ### Clean Rebuild
@@ -164,7 +164,7 @@ If generated files already exist and you want a fresh rebuild:
 Remove-Item parser.tab.c, parser.tab.h, lex.yy.c, compiler.exe -ErrorAction SilentlyContinue
 bison -d -o parser.tab.c parser.y
 flex -o lex.yy.c scanner.l
-gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c main.c
+gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c
 ```
 
 ## How To Run
@@ -392,4 +392,3 @@ It is suitable for demonstrating:
 - syntax error recovery
 - symbol table usage
 - simple semantic analysis
-

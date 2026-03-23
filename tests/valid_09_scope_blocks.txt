@@ -1,27 +1,31 @@
-// Valid test: nested blocks and scope shadowing.
-// Expected AST behavior: outer declaration, nested block with shadowed x, inner block with another x.
-// Expected interpreter output:
-// 10
-// 100
-// 7
-// 99
-// 10
+@@ Valid test: nested blocks and scope shadowing in report-style program.
+@@ Expected interpreter output:
+@@ 10
+@@ 100
+@@ 7
+@@ 99
+@@ 10
 
-num x = 10;
-
-write(x);
-
+#load mathLib.fx
+start() -> empty
 {
-    num x = 99;
-    num y = x + 1;
-    write(y);
+    num x = 10;
+
+    write(x);
 
     {
-        num x = 7;
+        num x = 99;
+        num y = x + 1;
+        write(y);
+
+        {
+            num x = 7;
+            write(x);
+        }
+
         write(x);
     }
 
     write(x);
+    send 0;
 }
-
-write(x);

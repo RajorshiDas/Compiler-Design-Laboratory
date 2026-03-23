@@ -1,7 +1,13 @@
-// Invalid test: syntax error with statement-level recovery.
-// Expected behavior: syntax error near ';' in assignment, parser continues to later statements.
+@@ Invalid test: malformed repeat statement.
+@@ Expected behavior: syntax error near the missing update expression.
 
-num a = 5;
-a = 1 + ;
-num b = 2;
-write(b);
+#load mathLib.fx
+start() -> empty
+{
+    num i = 1;
+    repeat(i, i <= 3, )
+    {
+        write(i);
+    }
+    send 0;
+}

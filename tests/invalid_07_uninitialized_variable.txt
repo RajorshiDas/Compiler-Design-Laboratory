@@ -1,11 +1,14 @@
-// Invalid test: access to a block-local variable after the block ends.
-// Expected behavior: semantic error for undeclared temp outside its scope.
+@@ Invalid test: logic context given a numeric expression.
+@@ Expected behavior: semantic error because chk requires a logic expression.
 
-num a = 1;
-
+#load mathLib.fx
+start() -> empty
 {
-    num temp = a + 1;
-    write(temp);
-}
+    num a = 1;
 
-write(temp);
+    chk(a + 1)
+        write("bad");
+    end chk
+
+    send 0;
+}

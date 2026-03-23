@@ -1,0 +1,17 @@
+Test File: invalid_01_undeclared_variable.txt
+Exit Code: 1
+
+compiler_report_check.exe : Semantic error: variable 'b' is not declared.
+At line:12 char:19
++         $output = & $compiler $test.FullName 2>&1 | Out-String
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Semantic error:...s not declared.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Semantic error: variable 'b' is not declared.
+Starting parsing...
+Parsing completed with 2 semantic error(s).
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------

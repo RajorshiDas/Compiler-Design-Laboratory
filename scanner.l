@@ -30,20 +30,18 @@ LETTER              [A-Za-z_]
 IDENTIFIER_PATTERN  {LETTER}({LETTER}|{DIGIT})*
 INTEGER_PATTERN     {DIGIT}+
 FLOAT_PATTERN       {DIGIT}+"."{DIGIT}+
-STRING_PATTERN      \"([^\\\n]|\\.)*\"
+STRING_PATTERN      \"([^\\\"\n]|\\.)*\"
+CHAR_PATTERN        \'([^\\\n]|\\.)\'
 
 %%
 
-"//"                    { BEGIN(SCOMMENT); }
 "@@"                    { BEGIN(SCOMMENT); }
-"/*"                    { BEGIN(MCOMMENT); }
 "@{"                    { BEGIN(MCOMMENT); }
 
 <SCOMMENT>[^\n]*        { }
 <SCOMMENT>\n            { BEGIN(INITIAL); }
 <SCOMMENT><<EOF>>       { BEGIN(INITIAL); return 0; }
 
-<MCOMMENT>"*/"          { BEGIN(INITIAL); }
 <MCOMMENT>"}@"          { BEGIN(INITIAL); }
 <MCOMMENT>\n            { }
 <MCOMMENT>.             { }
@@ -54,8 +52,15 @@ STRING_PATTERN      \"([^\\\n]|\\.)*\"
 
 [ \t\r\n]+              { }
 
-"load"                  { return LOAD; }
-"set"                   { return SET; }
+"#load"[ \t]+{IDENTIFIER_PATTERN}"."{IDENTIFIER_PATTERN} {
+                            yylval.strval = copy_lexeme();
+                            return INCLUDE_DIRECTIVE;
+                        }
+
+"start"                 { return START; }
+"fx"                    { return FX; }
+"send"                  { return SEND; }
+"empty"                 { return EMPTY; }
 "num"                   { return NUM_TYPE; }
 "real"                  { return REAL_TYPE; }
 "bigreal"               { return BIGREAL_TYPE; }
@@ -64,24 +69,37 @@ STRING_PATTERN      \"([^\\\n]|\\.)*\"
 "text"                  { return TEXT_TYPE; }
 "read"                  { return READ; }
 "write"                 { return WRITE; }
-"fx"                    { return FX; }
 "chk"                   { return CHK; }
 "else_try"              { return ELSE_TRY; }
 "then"                  { return THEN; }
+"end"                   { return END; }
 "repeat"                { return REPEAT; }
 "until"                 { return UNTIL; }
 "doing"                 { return DOING; }
 "skip"                  { return SKIP; }
+"stop"                  { return STOP; }
 "decide"                { return DECIDE; }
 "when"                  { return WHEN; }
 "otherwise"             { return OTHERWISE; }
-"stop"                  { return STOP; }
-"return"                { return RETURN; }
+"true"                  { return TRUE_LITERAL; }
+"false"                 { return FALSE_LITERAL; }
+"accept"                { return TRUE_LITERAL; }
+"reject"                { return FALSE_LITERAL; }
+"AND"                   { return AND; }
+"OR"                    { return OR; }
+"NOT"                   { return NOT; }
+"XOR"                   { return XOR; }
+"and"                   { return AND; }
+"or"                    { return OR; }
+"not"                   { return NOT; }
+"xor"                   { return XOR; }
 
 "=="                    { return EQ; }
 "!="                    { return NEQ; }
 "<="                    { return LE; }
 ">="                    { return GE; }
+"->"                    { return ARROW; }
+"=>"                    { return FAT_ARROW; }
 "="                     { return ASSIGN; }
 "<"                     { return LT; }
 ">"                     { return GT; }
@@ -89,6 +107,8 @@ STRING_PATTERN      \"([^\\\n]|\\.)*\"
 "-"                     { return MINUS; }
 "*"                     { return STAR; }
 "/"                     { return SLASH; }
+"%"                     { return MOD; }
+"|"                     { return PIPE; }
 
 ";"                     { return SEMICOLON; }
 ","                     { return COMMA; }
@@ -110,6 +130,11 @@ STRING_PATTERN      \"([^\\\n]|\\.)*\"
 {STRING_PATTERN}        {
                             yylval.strval = copy_lexeme();
                             return STRING;
+                        }
+
+{CHAR_PATTERN}          {
+                            yylval.strval = copy_lexeme();
+                            return CHAR_LITERAL;
                         }
 
 {IDENTIFIER_PATTERN}    {

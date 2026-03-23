@@ -1,0 +1,199 @@
+Test File: valid_05_loops.txt
+Exit Code: 0
+
+Starting parsing...
+
+AST:
+Declaration: i (num)
+  Initializer:
+    IntLiteral: 1
+Declaration: j (num)
+  Initializer:
+    IntLiteral: 0
+Repeat:
+  Iterator: i
+  Condition:
+    BinaryExpr: <=
+      Variable: i
+      IntLiteral: 3
+  Update:
+    BinaryExpr: +
+      Variable: i
+      IntLiteral: 1
+  Body:
+    Block:
+      Write:
+        StringLiteral: "Repeat loop iteration: "
+        Variable: i
+Assignment: i
+  IntLiteral: 1
+Until:
+  Condition:
+    BinaryExpr: >
+      Variable: i
+      IntLiteral: 3
+  Body:
+    Block:
+      Write:
+        StringLiteral: "While loop iteration: "
+        Variable: i
+      Assignment: i
+        BinaryExpr: +
+          Variable: i
+          IntLiteral: 1
+Repeat:
+  Iterator: j
+  Condition:
+    BinaryExpr: <
+      Variable: j
+      IntLiteral: 5
+  Update:
+    BinaryExpr: +
+      Variable: j
+      IntLiteral: 1
+  Body:
+    Block:
+      If:
+        Condition:
+          BinaryExpr: ==
+            Variable: j
+            IntLiteral: 2
+        Then:
+          Skip
+      If:
+        Condition:
+          BinaryExpr: ==
+            Variable: j
+            IntLiteral: 4
+        Then:
+          Stop
+      Write:
+        StringLiteral: "Loop j = "
+        Variable: j
+Return:
+  IntLiteral: 0
+
+Optimized AST:
+Declaration: i (num)
+  Initializer:
+    IntLiteral: 1
+Declaration: j (num)
+  Initializer:
+    IntLiteral: 0
+Repeat:
+  Iterator: i
+  Condition:
+    BinaryExpr: <=
+      Variable: i
+      IntLiteral: 3
+  Update:
+    BinaryExpr: +
+      Variable: i
+      IntLiteral: 1
+  Body:
+    Block:
+      Write:
+        StringLiteral: "Repeat loop iteration: "
+        Variable: i
+Assignment: i
+  IntLiteral: 1
+Until:
+  Condition:
+    BinaryExpr: >
+      Variable: i
+      IntLiteral: 3
+  Body:
+    Block:
+      Write:
+        StringLiteral: "While loop iteration: "
+        Variable: i
+      Assignment: i
+        BinaryExpr: +
+          Variable: i
+          IntLiteral: 1
+Repeat:
+  Iterator: j
+  Condition:
+    BinaryExpr: <
+      Variable: j
+      IntLiteral: 5
+  Update:
+    BinaryExpr: +
+      Variable: j
+      IntLiteral: 1
+  Body:
+    Block:
+      If:
+        Condition:
+          BinaryExpr: ==
+            Variable: j
+            IntLiteral: 2
+        Then:
+          Skip
+      If:
+        Condition:
+          BinaryExpr: ==
+            Variable: j
+            IntLiteral: 4
+        Then:
+          Stop
+      Write:
+        StringLiteral: "Loop j = "
+        Variable: j
+Return:
+  IntLiteral: 0
+
+Three-Address Code IR:
+i = 1
+j = 0
+L1:
+write "Repeat loop iteration: "
+write i
+t1 = i + 1
+i = t1
+t2 = i <= 3
+ifFalse t2 goto L2
+goto L1
+L2:
+i = 1
+L3:
+write "While loop iteration: "
+write i
+t3 = i + 1
+i = t3
+t4 = i > 3
+ifFalse t4 goto L3
+L4:
+t5 = j == 2
+ifFalse t5 goto L6
+L6:
+t6 = j == 4
+ifFalse t6 goto L8
+L8:
+write "Loop j = "
+write j
+t7 = j + 1
+j = t7
+t8 = j < 5
+ifFalse t8 goto L5
+goto L4
+L5:
+return 0
+
+Generated C code written to generated.c
+Repeat loop iteration: 1
+Repeat loop iteration: 2
+Repeat loop iteration: 3
+While loop iteration: 1
+While loop iteration: 2
+While loop iteration: 3
+Loop j = 0
+Loop j = 1
+Loop j = 3
+Parsing, semantic analysis, and interpretation completed successfully.
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------
+i                    num        4 0     
+j                    num        4 0

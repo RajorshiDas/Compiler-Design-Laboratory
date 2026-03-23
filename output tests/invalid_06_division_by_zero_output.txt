@@ -1,0 +1,64 @@
+Test File: invalid_06_division_by_zero.txt
+Exit Code: 1
+
+compiler_report_check.exe : Runtime error: division by zero.
+At line:12 char:19
++         $output = & $compiler $test.FullName 2>&1 | Out-String
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Runtime error: division by zero.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Starting parsing...
+
+AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 10
+Declaration: b (num)
+  Initializer:
+    IntLiteral: 0
+Declaration: c (num)
+Assignment: c
+  BinaryExpr: /
+    Variable: a
+    Variable: b
+Write:
+  Variable: c
+Return:
+  IntLiteral: 0
+
+Optimized AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 10
+Declaration: b (num)
+  Initializer:
+    IntLiteral: 0
+Declaration: c (num)
+Assignment: c
+  BinaryExpr: /
+    Variable: a
+    Variable: b
+Write:
+  Variable: c
+Return:
+  IntLiteral: 0
+
+Three-Address Code IR:
+a = 10
+b = 0
+t1 = a / b
+c = t1
+write c
+return 0
+
+Generated C code written to generated.c
+0
+Interpretation completed with 1 runtime error(s).
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------
+a                    num        10 0     
+b                    num        0 0     
+c                    num        0 0

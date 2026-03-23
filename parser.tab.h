@@ -50,51 +50,63 @@
    /* Put the tokens into the symbol table, so that GDB and other debuggers
       know about them.  */
    enum yytokentype {
-     LOAD = 258,
-     SET = 259,
-     NUM_TYPE = 260,
-     REAL_TYPE = 261,
-     BIGREAL_TYPE = 262,
-     CHR_TYPE = 263,
-     LOGIC_TYPE = 264,
-     TEXT_TYPE = 265,
-     READ = 266,
-     WRITE = 267,
-     FX = 268,
-     CHK = 269,
-     ELSE_TRY = 270,
-     THEN = 271,
-     REPEAT = 272,
-     UNTIL = 273,
-     DOING = 274,
-     SKIP = 275,
-     DECIDE = 276,
-     WHEN = 277,
-     OTHERWISE = 278,
-     STOP = 279,
-     RETURN = 280,
-     PLUS = 281,
-     MINUS = 282,
-     STAR = 283,
-     SLASH = 284,
-     ASSIGN = 285,
-     EQ = 286,
-     NEQ = 287,
-     LT = 288,
-     GT = 289,
-     LE = 290,
-     GE = 291,
-     SEMICOLON = 292,
-     COMMA = 293,
-     LPAREN = 294,
-     RPAREN = 295,
-     LBRACE = 296,
-     RBRACE = 297,
-     ID = 298,
-     STRING = 299,
-     INT_LITERAL = 300,
-     FLOAT_LITERAL = 301,
-     UMINUS = 302
+     INCLUDE_DIRECTIVE = 258,
+     ID = 259,
+     STRING = 260,
+     CHAR_LITERAL = 261,
+     INT_LITERAL = 262,
+     FLOAT_LITERAL = 263,
+     START = 264,
+     FX = 265,
+     SEND = 266,
+     EMPTY = 267,
+     NUM_TYPE = 268,
+     REAL_TYPE = 269,
+     BIGREAL_TYPE = 270,
+     CHR_TYPE = 271,
+     LOGIC_TYPE = 272,
+     TEXT_TYPE = 273,
+     READ = 274,
+     WRITE = 275,
+     CHK = 276,
+     ELSE_TRY = 277,
+     THEN = 278,
+     END = 279,
+     REPEAT = 280,
+     UNTIL = 281,
+     DOING = 282,
+     SKIP = 283,
+     STOP = 284,
+     DECIDE = 285,
+     WHEN = 286,
+     OTHERWISE = 287,
+     TRUE_LITERAL = 288,
+     FALSE_LITERAL = 289,
+     AND = 290,
+     OR = 291,
+     NOT = 292,
+     XOR = 293,
+     PLUS = 294,
+     MINUS = 295,
+     STAR = 296,
+     SLASH = 297,
+     MOD = 298,
+     ASSIGN = 299,
+     EQ = 300,
+     NEQ = 301,
+     LT = 302,
+     GT = 303,
+     LE = 304,
+     GE = 305,
+     ARROW = 306,
+     FAT_ARROW = 307,
+     PIPE = 308,
+     SEMICOLON = 309,
+     COMMA = 310,
+     LPAREN = 311,
+     RPAREN = 312,
+     LBRACE = 313,
+     RBRACE = 314
    };
 #endif
 
@@ -105,7 +117,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 58 "parser.y"
+#line 63 "parser.y"
 
     int intval;
     float floatval;
@@ -120,7 +132,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 124 "parser.tab.h"
+#line 136 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

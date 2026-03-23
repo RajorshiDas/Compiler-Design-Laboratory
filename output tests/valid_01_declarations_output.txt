@@ -1,0 +1,92 @@
+Test File: valid_01_declarations.txt
+Exit Code: 0
+
+Starting parsing...
+
+AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 10
+Declaration: r (real)
+  Initializer:
+    FloatLiteral: 3.5
+Declaration: ok (logic)
+  Initializer:
+    BoolLiteral: true
+Declaration: letter (chr)
+  Initializer:
+    CharLiteral: 'Z'
+Declaration: msg (text)
+  Initializer:
+    StringLiteral: "hello"
+Write:
+  Variable: a
+Write:
+  Variable: r
+Write:
+  Variable: ok
+Write:
+  Variable: letter
+Write:
+  Variable: msg
+Return:
+  IntLiteral: 0
+
+Optimized AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 10
+Declaration: r (real)
+  Initializer:
+    FloatLiteral: 3.5
+Declaration: ok (logic)
+  Initializer:
+    BoolLiteral: true
+Declaration: letter (chr)
+  Initializer:
+    CharLiteral: 'Z'
+Declaration: msg (text)
+  Initializer:
+    StringLiteral: "hello"
+Write:
+  Variable: a
+Write:
+  Variable: r
+Write:
+  Variable: ok
+Write:
+  Variable: letter
+Write:
+  Variable: msg
+Return:
+  IntLiteral: 0
+
+Three-Address Code IR:
+a = 10
+r = 3.5
+ok = 1
+letter = 'Z'
+msg = "hello"
+write a
+write r
+write ok
+write letter
+write msg
+return 0
+
+Generated C code written to generated.c
+10
+3.5
+true
+Z
+hello
+Parsing, semantic analysis, and interpretation completed successfully.
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------
+a                    num        10 0     
+r                    real       3.5 0     
+ok                   logic      true 0     
+letter               chr        Z 0     
+msg                  text       hello 0

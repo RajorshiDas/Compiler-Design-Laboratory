@@ -1,14 +1,17 @@
-// Valid test: text values and string output.
-// Expected AST behavior: text declarations, assignment, and write statements.
-// Expected interpreter output:
-// compiler
-// lab
-// ok
+@@ Valid test: strings and mixed write arguments.
+@@ Expected interpreter output:
+@@ compiler
+@@ lab
+@@ status = ready
 
-text message = "compiler";
-text label;
+#load mathLib.fx
+start() -> empty
+{
+    text message = "compiler";
+    text label = "lab";
 
-label = "lab";
-write(message);
-write(label);
-write("ok");
+    write(message);
+    write(label);
+    write("status = ", "ready");
+    send 0;
+}

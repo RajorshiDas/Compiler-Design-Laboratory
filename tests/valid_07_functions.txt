@@ -1,24 +1,28 @@
-// Valid test: function declarations, parameter passing, nested calls, and returns.
-// Expected AST behavior: two function definitions, then assignment using nested call twice(add(...)).
-// Expected interpreter output:
-// 10
-// Expected IR shape in main part:
-// param 2
-// param 3
-// t1 = call add, 2
-// param t1
-// t2 = call twice, 1
-// result = t2
+@@ Valid test: functions with declared return types and builtin math helpers.
+@@ Expected interpreter output:
+@@ 15
+@@ 100
+@@ 4
 
-fx add(num x, num y) {
-    return x + y;
+#load mathLib.fx
+start() -> empty;
+{
+    num a = 10;
+    num b = 5;
+    num result;
+
+    fx addNumbers(num x, num y) -> num
+    {
+        send x + y;
+    }
+
+    result = addNumbers(a, b);
+    write(result);
+
+    result = power(a, 2);
+    write(result);
+
+    result = squart(16);
+    write(result);
+    send 0;
 }
-
-fx twice(num value) {
-    return value + value;
-}
-
-num result;
-
-result = twice(add(2, 3));
-write(result);

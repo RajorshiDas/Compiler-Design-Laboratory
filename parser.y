@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "ast.h"
 #include "symtab.h"
 
@@ -30,23 +31,27 @@ static SymbolType current_decl_type = TYPE_INVALID;
 static FunctionSignature *function_signatures = NULL;
 static char *function_name_stack[64];
 static SymbolType function_return_stack[64];
+static SymbolType function_declared_return_stack[64];
 static int function_stack_top = 0;
 
 static int is_numeric_type(SymbolType type);
 static int is_assignment_compatible(SymbolType target_type, SymbolType value_type);
 static ExprNode *make_numeric_expr(const char *op_text, ExprNode *left, ExprNode *right);
 static ExprNode *make_relational_expr(const char *op_text, ExprNode *left, ExprNode *right);
+static ExprNode *make_logic_expr(const char *op_text, ExprNode *left, ExprNode *right);
 static ExprNode *make_unary_minus_expr(ExprNode *operand);
+static ExprNode *make_not_expr(ExprNode *operand);
+static ExprNode *make_abs_expr(ExprNode *operand);
 static int require_declared_identifier(const char *name, SymbolType *out_type);
 static int declare_identifier(const char *name, SymbolType type);
 static int validate_assignment(const char *name, SymbolType value_type);
 static void validate_logic_expression(SymbolType type, const char *context);
 static FunctionSignature *find_function_signature(const char *name);
-static SymbolType lookup_function_return_type(const char *name);
-static void validate_function_call(const char *name, ExprList *arguments);
-static void begin_function_definition(char *name, ParamNode *parameters);
+static SymbolType infer_function_call_type(const char *name, ExprList *arguments);
+static void begin_function_definition(char *name, ParamNode *parameters, SymbolType declared_return_type);
 static SymbolType finish_function_definition(ParamNode *parameters);
 static void note_function_return(SymbolType type);
+static SymbolType builtin_unary_return_type(const char *name, ExprList *arguments);
 
 int get_semantic_error_count(void) {
     return semantic_errors;
@@ -67,18 +72,26 @@ int get_semantic_error_count(void) {
     CaseNode *caseclause;
 }
 
-%token LOAD SET NUM_TYPE REAL_TYPE BIGREAL_TYPE CHR_TYPE LOGIC_TYPE TEXT_TYPE READ WRITE FX CHK ELSE_TRY THEN REPEAT UNTIL DOING SKIP DECIDE WHEN OTHERWISE STOP RETURN
-%token PLUS MINUS STAR SLASH ASSIGN EQ NEQ LT GT LE GE
-%token SEMICOLON COMMA LPAREN RPAREN LBRACE RBRACE
-%token <strval> ID STRING
+%token <strval> INCLUDE_DIRECTIVE ID STRING CHAR_LITERAL
 %token <intval> INT_LITERAL
 %token <floatval> FLOAT_LITERAL
+%token START FX SEND EMPTY
+%token NUM_TYPE REAL_TYPE BIGREAL_TYPE CHR_TYPE LOGIC_TYPE TEXT_TYPE
+%token READ WRITE CHK ELSE_TRY THEN END REPEAT UNTIL DOING SKIP STOP DECIDE WHEN OTHERWISE
+%token TRUE_LITERAL FALSE_LITERAL
+%token AND OR NOT XOR
+%token PLUS MINUS STAR SLASH MOD
+%token ASSIGN EQ NEQ LT GT LE GE
+%token ARROW FAT_ARROW PIPE
+%token SEMICOLON COMMA LPAREN RPAREN LBRACE RBRACE
 
-%type <type> type_specifier
-%type <expr> condition expression term factor
-%type <stmt> statement_list statement sync_semi declaration id_list id_item assignment_statement read_statement write_statement block chk_statement else_part repeat_statement decide_statement otherwise_clause_opt function_definition return_statement
+%type <type> type_specifier return_type
+%type <expr> expression logic_or logic_xor logic_and equality relational additive multiplicative unary primary
+%type <stmt> statement_list statement declaration id_list id_item assignment_statement read_statement write_statement block
+%type <stmt> chk_statement chk_suffix repeat_statement until_statement doing_statement decide_statement
+%type <stmt> otherwise_clause_opt function_definition send_statement case_action
 %type <param> parameter_list_opt parameter_list parameter function_header
-%type <arglist> argument_list_opt argument_list
+%type <arglist> write_argument_list argument_list_opt argument_list
 %type <caseclause> when_clause_list when_clause
 
 %destructor { free($$); } <strval>
@@ -88,20 +101,40 @@ int get_semantic_error_count(void) {
 %destructor { free_expr_list($$); } <arglist>
 %destructor { free_case_list($$); } <caseclause>
 
-%left EQ NEQ LT GT LE GE
-%left PLUS MINUS
-%left STAR SLASH
-%right UMINUS
-
 %start program
 
 %%
 
 program
-    : statement_list
+    : include_list start_definition
+    ;
+
+include_list
+    : /* empty */
+    | include_list INCLUDE_DIRECTIVE
       {
-          parsed_program = create_program($1);
+          free($2);
       }
+    ;
+
+start_definition
+    : START LPAREN RPAREN ARROW EMPTY start_semicolon_opt block
+      {
+          StmtNode *body = NULL;
+
+          if ($7 != NULL && $7->kind == STMT_BLOCK) {
+              body = $7->data.block.statements;
+              $7->data.block.statements = NULL;
+              free_statement_list($7);
+          }
+
+          parsed_program = create_program(body);
+      }
+    ;
+
+start_semicolon_opt
+    : /* empty */
+    | SEMICOLON
     ;
 
 statement_list
@@ -115,24 +148,17 @@ statement_list
       }
     ;
 
-sync_semi
-    : error SEMICOLON
-      {
-          yyerror("recovering at statement terminator");
-          yyerrok;
-          $$ = NULL;
-      }
-    ;
-
 statement
     : declaration
     | assignment_statement
     | read_statement
     | write_statement
     | function_definition
-    | return_statement
+    | send_statement
     | chk_statement
     | repeat_statement
+    | until_statement
+    | doing_statement
     | decide_statement
     | block
     | SKIP SEMICOLON
@@ -142,34 +168,6 @@ statement
     | STOP SEMICOLON
       {
           $$ = create_stop_stmt();
-      }
-    | STOP expression SEMICOLON
-      {
-          if (function_stack_top == 0) {
-              fprintf(stderr, "Semantic error at line %d: 'stop <expr>;' is only valid inside a function.\n", yylineno);
-              semantic_errors++;
-          } else {
-              note_function_return(($2)->value_type);
-          }
-          $$ = create_return_stmt($2);
-      }
-    | sync_semi
-      {
-          yyerror("invalid statement skipped");
-          $$ = NULL;
-      }
-    ;
-
-return_statement
-    : RETURN expression SEMICOLON
-      {
-          if (function_stack_top == 0) {
-              fprintf(stderr, "Semantic error at line %d: return is only valid inside a function.\n", yylineno);
-              semantic_errors++;
-          } else {
-              note_function_return(($2)->value_type);
-          }
-          $$ = create_return_stmt($2);
       }
     ;
 
@@ -189,9 +187,9 @@ block
     ;
 
 function_header
-    : FX ID LPAREN parameter_list_opt RPAREN
+    : FX ID LPAREN parameter_list_opt RPAREN ARROW return_type
       {
-          begin_function_definition($2, $4);
+          begin_function_definition($2, $4, (SymbolType)$7);
           $$ = $4;
       }
     ;
@@ -200,8 +198,9 @@ function_definition
     : function_header block
       {
           char *function_name = function_name_stack[function_stack_top - 1];
-          SymbolType return_type = finish_function_definition($1);
-          $$ = create_function_def_stmt(function_name, $1, $2, return_type);
+          SymbolType return_type_value = finish_function_definition($1);
+
+          $$ = create_function_def_stmt(function_name, $1, $2, return_type_value);
       }
     ;
 
@@ -246,20 +245,6 @@ declaration
       {
           $$ = $2;
       }
-    | LOAD declaration_head id_list SEMICOLON
-      {
-          $$ = $3;
-      }
-    | declaration_head sync_semi
-      {
-          yyerror("invalid declaration");
-          $$ = NULL;
-      }
-    | LOAD declaration_head sync_semi
-      {
-          yyerror("invalid declaration");
-          $$ = NULL;
-      }
     ;
 
 id_list
@@ -294,23 +279,6 @@ assignment_statement
           validate_assignment($1, ($3)->value_type);
           $$ = create_assignment_stmt($1, $3);
       }
-    | SET ID ASSIGN expression SEMICOLON
-      {
-          validate_assignment($2, ($4)->value_type);
-          $$ = create_assignment_stmt($2, $4);
-      }
-    | ID ASSIGN sync_semi
-      {
-          yyerror("invalid assignment expression");
-          free($1);
-          $$ = NULL;
-      }
-    | SET ID ASSIGN sync_semi
-      {
-          yyerror("invalid assignment expression");
-          free($2);
-          $$ = NULL;
-      }
     ;
 
 read_statement
@@ -321,58 +289,92 @@ read_statement
           require_declared_identifier($3, &type);
           $$ = create_read_stmt($3, type);
       }
-    | READ LPAREN error RPAREN SEMICOLON
-      {
-          yyerror("invalid read statement");
-          yyerrok;
-          $$ = NULL;
-      }
     ;
 
 write_statement
-    : WRITE LPAREN expression RPAREN SEMICOLON
+    : WRITE LPAREN write_argument_list RPAREN SEMICOLON
       {
           $$ = create_write_stmt($3);
       }
-    | WRITE LPAREN error RPAREN SEMICOLON
+    ;
+
+write_argument_list
+    : expression
       {
-          yyerror("invalid write statement");
-          yyerrok;
-          $$ = NULL;
+          $$ = create_expr_list($1);
+      }
+    | write_argument_list COMMA expression
+      {
+          $$ = append_expr_list($1, create_expr_list($3));
+      }
+    ;
+
+send_statement
+    : SEND expression SEMICOLON
+      {
+          if (function_stack_top > 0) {
+              note_function_return(($2)->value_type);
+          }
+          $$ = create_return_stmt($2);
       }
     ;
 
 chk_statement
-    : CHK LPAREN condition RPAREN THEN block else_part
+    : CHK LPAREN expression RPAREN statement_list END CHK chk_suffix
       {
           validate_logic_expression(($3)->value_type, "chk");
-          $$ = create_chk_stmt($3, $6, $7);
+          $$ = create_chk_stmt($3, $5, $8);
       }
     ;
 
-else_part
+chk_suffix
     : /* empty */
       {
           $$ = NULL;
       }
-    | ELSE_TRY block
+    | THEN statement_list END THEN
       {
           $$ = $2;
+      }
+    | ELSE_TRY LPAREN expression RPAREN statement_list END ELSE_TRY chk_suffix
+      {
+          validate_logic_expression(($3)->value_type, "else_try");
+          $$ = create_chk_stmt($3, $5, $8);
       }
     ;
 
 repeat_statement
-    : REPEAT DOING block UNTIL LPAREN condition RPAREN SEMICOLON
+    : REPEAT LPAREN ID COMMA expression COMMA expression RPAREN block
       {
-          validate_logic_expression(($6)->value_type, "repeat-until");
-          $$ = create_repeat_stmt($3, $6);
+          SymbolType type;
+
+          require_declared_identifier($3, &type);
+          validate_logic_expression(($5)->value_type, "repeat");
+          validate_assignment($3, ($7)->value_type);
+          $$ = create_repeat_stmt($3, $5, $7, $9);
+      }
+    ;
+
+until_statement
+    : UNTIL LPAREN expression RPAREN block
+      {
+          validate_logic_expression(($3)->value_type, "until");
+          $$ = create_until_stmt($3, $5);
+      }
+    ;
+
+doing_statement
+    : DOING block UNTIL LPAREN expression RPAREN SEMICOLON
+      {
+          validate_logic_expression(($5)->value_type, "doing-until");
+          $$ = create_doing_stmt($2, $5);
       }
     ;
 
 decide_statement
-    : DECIDE LPAREN expression RPAREN LBRACE when_clause_list otherwise_clause_opt RBRACE
+    : DECIDE expression LBRACE when_clause_list otherwise_clause_opt RBRACE
       {
-          $$ = create_decide_stmt($3, $6, $7);
+          $$ = create_decide_stmt($2, $4, $5);
       }
     ;
 
@@ -388,10 +390,9 @@ when_clause_list
     ;
 
 when_clause
-    : WHEN condition THEN block
+    : WHEN LPAREN expression RPAREN FAT_ARROW case_action
       {
-          validate_logic_expression(($2)->value_type, "when");
-          $$ = create_case_node($2, $4);
+          $$ = create_case_node($3, $6);
       }
     ;
 
@@ -400,68 +401,14 @@ otherwise_clause_opt
       {
           $$ = NULL;
       }
-    | OTHERWISE THEN block
+    | OTHERWISE FAT_ARROW case_action
       {
           $$ = $3;
       }
     ;
 
-condition
-    : expression
-      {
-          $$ = $1;
-      }
-    | expression EQ expression
-      {
-          $$ = make_relational_expr("==", $1, $3);
-      }
-    | expression NEQ expression
-      {
-          $$ = make_relational_expr("!=", $1, $3);
-      }
-    | expression LT expression
-      {
-          $$ = make_relational_expr("<", $1, $3);
-      }
-    | expression GT expression
-      {
-          $$ = make_relational_expr(">", $1, $3);
-      }
-    | expression LE expression
-      {
-          $$ = make_relational_expr("<=", $1, $3);
-      }
-    | expression GE expression
-      {
-          $$ = make_relational_expr(">=", $1, $3);
-      }
-    ;
-
-expression
-    : expression PLUS term
-      {
-          $$ = make_numeric_expr("+", $1, $3);
-      }
-    | expression MINUS term
-      {
-          $$ = make_numeric_expr("-", $1, $3);
-      }
-    | term
-      {
-          $$ = $1;
-      }
-    ;
-
-term
-    : term STAR factor
-      {
-          $$ = make_numeric_expr("*", $1, $3);
-      }
-    | term SLASH factor
-      {
-          $$ = make_numeric_expr("/", $1, $3);
-      }
-    | factor
+case_action
+    : statement
       {
           $$ = $1;
       }
@@ -489,7 +436,142 @@ argument_list
       }
     ;
 
-factor
+expression
+    : logic_or
+      {
+          $$ = $1;
+      }
+    ;
+
+logic_or
+    : logic_or OR logic_xor
+      {
+          $$ = make_logic_expr("OR", $1, $3);
+      }
+    | logic_xor
+      {
+          $$ = $1;
+      }
+    ;
+
+logic_xor
+    : logic_xor XOR logic_and
+      {
+          $$ = make_logic_expr("XOR", $1, $3);
+      }
+    | logic_and
+      {
+          $$ = $1;
+      }
+    ;
+
+logic_and
+    : logic_and AND equality
+      {
+          $$ = make_logic_expr("AND", $1, $3);
+      }
+    | equality
+      {
+          $$ = $1;
+      }
+    ;
+
+equality
+    : equality EQ relational
+      {
+          $$ = make_relational_expr("==", $1, $3);
+      }
+    | equality NEQ relational
+      {
+          $$ = make_relational_expr("!=", $1, $3);
+      }
+    | relational
+      {
+          $$ = $1;
+      }
+    ;
+
+relational
+    : relational LT additive
+      {
+          $$ = make_relational_expr("<", $1, $3);
+      }
+    | relational GT additive
+      {
+          $$ = make_relational_expr(">", $1, $3);
+      }
+    | relational LE additive
+      {
+          $$ = make_relational_expr("<=", $1, $3);
+      }
+    | relational GE additive
+      {
+          $$ = make_relational_expr(">=", $1, $3);
+      }
+    | additive
+      {
+          $$ = $1;
+      }
+    ;
+
+additive
+    : additive PLUS multiplicative
+      {
+          $$ = make_numeric_expr("+", $1, $3);
+      }
+    | additive MINUS multiplicative
+      {
+          $$ = make_numeric_expr("-", $1, $3);
+      }
+    | multiplicative
+      {
+          $$ = $1;
+      }
+    ;
+
+multiplicative
+    : multiplicative STAR unary
+      {
+          $$ = make_numeric_expr("*", $1, $3);
+      }
+    | multiplicative SLASH unary
+      {
+          $$ = make_numeric_expr("/", $1, $3);
+      }
+    | multiplicative MOD unary
+      {
+          $$ = make_numeric_expr("%", $1, $3);
+      }
+    | unary
+      {
+          $$ = $1;
+      }
+    ;
+
+unary
+    : NOT unary
+      {
+          $$ = make_not_expr($2);
+      }
+    | PLUS unary
+      {
+          $$ = $2;
+      }
+    | MINUS unary
+      {
+          $$ = make_unary_minus_expr($2);
+      }
+    | PIPE expression PIPE
+      {
+          $$ = make_abs_expr($2);
+      }
+    | primary
+      {
+          $$ = $1;
+      }
+    ;
+
+primary
     : ID
       {
           SymbolType type;
@@ -499,8 +581,9 @@ factor
       }
     | ID LPAREN argument_list_opt RPAREN
       {
-          validate_function_call($1, $3);
-          $$ = create_function_call_expr($1, $3, lookup_function_return_type($1));
+          SymbolType return_type_value = infer_function_call_type($1, $3);
+
+          $$ = create_function_call_expr($1, $3, return_type_value);
       }
     | INT_LITERAL
       {
@@ -516,13 +599,23 @@ factor
           free($1);
           $$ = create_string_literal_expr(decoded);
       }
+    | CHAR_LITERAL
+      {
+          char value = decode_char_literal($1);
+          free($1);
+          $$ = create_char_literal_expr(value);
+      }
+    | TRUE_LITERAL
+      {
+          $$ = create_bool_literal_expr(1);
+      }
+    | FALSE_LITERAL
+      {
+          $$ = create_bool_literal_expr(0);
+      }
     | LPAREN expression RPAREN
       {
           $$ = $2;
-      }
-    | MINUS factor %prec UMINUS
-      {
-          $$ = make_unary_minus_expr($2);
       }
     ;
 
@@ -553,6 +646,17 @@ type_specifier
       }
     ;
 
+return_type
+    : type_specifier
+      {
+          $$ = $1;
+      }
+    | EMPTY
+      {
+          $$ = TYPE_EMPTY;
+      }
+    ;
+
 %%
 
 static int is_numeric_type(SymbolType type) {
@@ -578,6 +682,16 @@ static ExprNode *make_numeric_expr(const char *op_text, ExprNode *left, ExprNode
 
     if (left->value_type == TYPE_INVALID || right->value_type == TYPE_INVALID) {
         return create_binary_expr(op_text, left, right, TYPE_INVALID);
+    }
+
+    if (strcmp(op_text, "%") == 0) {
+        if (left->value_type != TYPE_NUM || right->value_type != TYPE_NUM) {
+            fprintf(stderr, "Semantic error at line %d: modulus requires num operands.\n", yylineno);
+            semantic_errors++;
+            return create_binary_expr(op_text, left, right, TYPE_INVALID);
+        }
+
+        return create_binary_expr(op_text, left, right, TYPE_NUM);
     }
 
     result_type_value = result_type(left->value_type, right->value_type);
@@ -611,6 +725,37 @@ static ExprNode *make_relational_expr(const char *op_text, ExprNode *left, ExprN
     return create_binary_expr(op_text, left, right, TYPE_LOGIC);
 }
 
+static ExprNode *make_logic_expr(const char *op_text, ExprNode *left, ExprNode *right) {
+    SymbolType result_type_value = TYPE_LOGIC;
+
+    if (left->value_type == TYPE_INVALID || right->value_type == TYPE_INVALID) {
+        return create_binary_expr(op_text, left, right, TYPE_INVALID);
+    }
+
+    if (strcmp(op_text, "XOR") == 0) {
+        if (left->value_type == TYPE_LOGIC && right->value_type == TYPE_LOGIC) {
+            result_type_value = TYPE_LOGIC;
+        } else if (left->value_type == TYPE_NUM && right->value_type == TYPE_NUM) {
+            result_type_value = TYPE_NUM;
+        } else {
+            fprintf(stderr,
+                    "Semantic error at line %d: XOR requires either two logic operands or two num operands.\n",
+                    yylineno);
+            semantic_errors++;
+            result_type_value = TYPE_INVALID;
+        }
+    } else if (left->value_type != TYPE_LOGIC || right->value_type != TYPE_LOGIC) {
+        fprintf(stderr,
+                "Semantic error at line %d: operator '%s' requires logic operands.\n",
+                yylineno,
+                op_text);
+        semantic_errors++;
+        result_type_value = TYPE_INVALID;
+    }
+
+    return create_binary_expr(op_text, left, right, result_type_value);
+}
+
 static ExprNode *make_unary_minus_expr(ExprNode *operand) {
     if (operand->value_type != TYPE_UNKNOWN &&
         operand->value_type != TYPE_INVALID &&
@@ -621,6 +766,30 @@ static ExprNode *make_unary_minus_expr(ExprNode *operand) {
     }
 
     return create_unary_expr("-", operand, operand->value_type);
+}
+
+static ExprNode *make_not_expr(ExprNode *operand) {
+    if (operand->value_type != TYPE_UNKNOWN &&
+        operand->value_type != TYPE_INVALID &&
+        operand->value_type != TYPE_LOGIC) {
+        fprintf(stderr, "Semantic error at line %d: NOT requires a logic operand.\n", yylineno);
+        semantic_errors++;
+        return create_unary_expr("!", operand, TYPE_INVALID);
+    }
+
+    return create_unary_expr("!", operand, TYPE_LOGIC);
+}
+
+static ExprNode *make_abs_expr(ExprNode *operand) {
+    if (operand->value_type != TYPE_UNKNOWN &&
+        operand->value_type != TYPE_INVALID &&
+        !is_numeric_type(operand->value_type)) {
+        fprintf(stderr, "Semantic error at line %d: absolute value requires a numeric operand.\n", yylineno);
+        semantic_errors++;
+        return create_unary_expr("ABS", operand, TYPE_INVALID);
+    }
+
+    return create_unary_expr("ABS", operand, operand->value_type);
 }
 
 static int require_declared_identifier(const char *name, SymbolType *out_type) {
@@ -691,8 +860,61 @@ static FunctionSignature *find_function_signature(const char *name) {
     return NULL;
 }
 
-static SymbolType lookup_function_return_type(const char *name) {
+static SymbolType builtin_unary_return_type(const char *name, ExprList *arguments) {
+    if (arguments == NULL || arguments->next != NULL) {
+        fprintf(stderr,
+                "Semantic error at line %d: builtin '%s' expects one argument.\n",
+                yylineno,
+                name);
+        semantic_errors++;
+        return TYPE_INVALID;
+    }
+
+    if (!is_numeric_type(arguments->expr->value_type)) {
+        fprintf(stderr,
+                "Semantic error at line %d: builtin '%s' requires a numeric argument.\n",
+                yylineno,
+                name);
+        semantic_errors++;
+        return TYPE_INVALID;
+    }
+
+    return arguments->expr->value_type;
+}
+
+static SymbolType infer_function_call_type(const char *name, ExprList *arguments) {
     FunctionSignature *signature = find_function_signature(name);
+    ExprList *current_argument = arguments;
+    int index = 0;
+
+    if (strcmp(name, "power") == 0) {
+        if (arguments == NULL || arguments->next == NULL || arguments->next->next != NULL) {
+            fprintf(stderr,
+                    "Semantic error at line %d: builtin 'power' expects two arguments.\n",
+                    yylineno);
+            semantic_errors++;
+            return TYPE_INVALID;
+        }
+
+        if (!is_numeric_type(arguments->expr->value_type) ||
+            !is_numeric_type(arguments->next->expr->value_type)) {
+            fprintf(stderr,
+                    "Semantic error at line %d: builtin 'power' requires numeric arguments.\n",
+                    yylineno);
+            semantic_errors++;
+            return TYPE_INVALID;
+        }
+
+        return result_type(arguments->expr->value_type, arguments->next->expr->value_type);
+    }
+
+    if (strcmp(name, "squart") == 0 || strcmp(name, "upper") == 0 ||
+        strcmp(name, "lower") == 0 || strcmp(name, "log") == 0 ||
+        strcmp(name, "sin") == 0 || strcmp(name, "cos") == 0 ||
+        strcmp(name, "tan") == 0 || strcmp(name, "asin") == 0 ||
+        strcmp(name, "acos") == 0 || strcmp(name, "atan") == 0) {
+        return builtin_unary_return_type(name, arguments);
+    }
 
     if (signature == NULL) {
         fprintf(stderr,
@@ -701,18 +923,6 @@ static SymbolType lookup_function_return_type(const char *name) {
                 name);
         semantic_errors++;
         return TYPE_INVALID;
-    }
-
-    return signature->return_type;
-}
-
-static void validate_function_call(const char *name, ExprList *arguments) {
-    FunctionSignature *signature = find_function_signature(name);
-    ExprList *current_argument = arguments;
-    int index = 0;
-
-    if (signature == NULL) {
-        return;
     }
 
     while (current_argument != NULL && index < signature->param_count) {
@@ -737,9 +947,11 @@ static void validate_function_call(const char *name, ExprList *arguments) {
                 name);
         semantic_errors++;
     }
+
+    return signature->return_type;
 }
 
-static void begin_function_definition(char *name, ParamNode *parameters) {
+static void begin_function_definition(char *name, ParamNode *parameters, SymbolType declared_return_type) {
     ParamNode *current = parameters;
 
     if (function_stack_top >= 64) {
@@ -750,6 +962,7 @@ static void begin_function_definition(char *name, ParamNode *parameters) {
 
     function_name_stack[function_stack_top] = name;
     function_return_stack[function_stack_top] = TYPE_UNKNOWN;
+    function_declared_return_stack[function_stack_top] = declared_return_type;
     ++function_stack_top;
 
     enter_scope();
@@ -763,7 +976,8 @@ static SymbolType finish_function_definition(ParamNode *parameters) {
     FunctionSignature *signature;
     ParamNode *current;
     int index = 0;
-    SymbolType return_type;
+    SymbolType observed_return_type;
+    SymbolType declared_return_type;
 
     leave_scope();
 
@@ -771,7 +985,34 @@ static SymbolType finish_function_definition(ParamNode *parameters) {
         return TYPE_UNKNOWN;
     }
 
-    return_type = function_return_stack[function_stack_top - 1];
+    observed_return_type = function_return_stack[function_stack_top - 1];
+    declared_return_type = function_declared_return_stack[function_stack_top - 1];
+
+    if (declared_return_type == TYPE_EMPTY) {
+        if (observed_return_type != TYPE_UNKNOWN) {
+            fprintf(stderr,
+                    "Semantic error at line %d: function '%s' is declared empty but sends a value.\n",
+                    yylineno,
+                    function_name_stack[function_stack_top - 1]);
+            semantic_errors++;
+        }
+    } else if (observed_return_type == TYPE_UNKNOWN) {
+        fprintf(stderr,
+                "Semantic error at line %d: function '%s' must send a %s value.\n",
+                yylineno,
+                function_name_stack[function_stack_top - 1],
+                symbol_type_name(declared_return_type));
+        semantic_errors++;
+    } else if (!is_assignment_compatible(declared_return_type, observed_return_type)) {
+        fprintf(stderr,
+                "Semantic error at line %d: function '%s' sends %s but is declared as %s.\n",
+                yylineno,
+                function_name_stack[function_stack_top - 1],
+                symbol_type_name(observed_return_type),
+                symbol_type_name(declared_return_type));
+        semantic_errors++;
+    }
+
     signature = find_function_signature(function_name_stack[function_stack_top - 1]);
     if (signature != NULL) {
         fprintf(stderr,
@@ -791,14 +1032,14 @@ static SymbolType finish_function_definition(ParamNode *parameters) {
                 current = current->next;
             }
             signature->param_count = index;
-            signature->return_type = return_type;
+            signature->return_type = declared_return_type;
             signature->next = function_signatures;
             function_signatures = signature;
         }
     }
 
     --function_stack_top;
-    return return_type;
+    return declared_return_type;
 }
 
 static void note_function_return(SymbolType type) {
@@ -824,7 +1065,7 @@ static void note_function_return(SymbolType type) {
     }
 
     fprintf(stderr,
-            "Semantic error at line %d: inconsistent return types inside function '%s'.\n",
+            "Semantic error at line %d: inconsistent send types inside function '%s'.\n",
             yylineno,
             function_name_stack[function_stack_top - 1]);
     semantic_errors++;

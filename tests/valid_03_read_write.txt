@@ -1,15 +1,17 @@
-// Valid test: read and write.
-// Sample stdin:
-// 7
-// Expected AST behavior: one read statement and three write statements.
-// Expected interpreter output with sample stdin:
-// 7
-// 8
-// done
+@@ Valid test: report-style read and multi-argument write.
+@@ Sample stdin:
+@@ 7
+@@ Expected interpreter output with sample stdin:
+@@ Read value = 7
+@@ Next value = 8
 
-num a = 1;
+#load mathLib.fx
+start() -> empty
+{
+    num a = 1;
 
-read(a);
-write(a);
-write(a + 1);
-write("done");
+    read(a);
+    write("Read value = ", a);
+    write("Next value = ", a + 1);
+    send 0;
+}

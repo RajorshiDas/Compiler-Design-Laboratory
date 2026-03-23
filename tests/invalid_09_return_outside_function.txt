@@ -1,5 +1,9 @@
-// Invalid test: return statement outside a function.
-// Expected behavior: semantic error because return is only valid inside a function.
+@@ Invalid test: skip outside a loop.
+@@ Expected behavior: runtime error because skip is only meaningful inside a loop.
 
-num a = 5;
-return a;
+#load mathLib.fx
+start() -> empty
+{
+    skip;
+    send 0;
+}

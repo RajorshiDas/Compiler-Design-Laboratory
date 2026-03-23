@@ -56,6 +56,26 @@ ExprNode *create_string_literal_expr(char *value) {
     return expr;
 }
 
+ExprNode *create_char_literal_expr(char value) {
+    ExprNode *expr = allocate_expr(TYPE_CHAR, EXPR_CHAR_LITERAL);
+
+    if (expr != NULL) {
+        expr->data.char_value = value;
+    }
+
+    return expr;
+}
+
+ExprNode *create_bool_literal_expr(int value) {
+    ExprNode *expr = allocate_expr(TYPE_LOGIC, EXPR_BOOL_LITERAL);
+
+    if (expr != NULL) {
+        expr->data.bool_value = value ? 1 : 0;
+    }
+
+    return expr;
+}
+
 ExprNode *create_variable_expr(char *name, SymbolType value_type) {
     ExprNode *expr = allocate_expr(value_type, EXPR_VARIABLE);
 
@@ -265,11 +285,11 @@ StmtNode *create_read_stmt(char *name, SymbolType declared_type) {
     return stmt;
 }
 
-StmtNode *create_write_stmt(ExprNode *value) {
+StmtNode *create_write_stmt(ExprList *values) {
     StmtNode *stmt = allocate_stmt(STMT_WRITE);
 
     if (stmt != NULL) {
-        stmt->data.write_stmt.value = value;
+        stmt->data.write_stmt.values = values;
     }
 
     return stmt;
@@ -297,12 +317,36 @@ StmtNode *create_chk_stmt(ExprNode *condition, StmtNode *then_branch, StmtNode *
     return stmt;
 }
 
-StmtNode *create_repeat_stmt(StmtNode *body, ExprNode *condition) {
+StmtNode *create_repeat_stmt(char *iterator, ExprNode *condition, ExprNode *update, StmtNode *body) {
     StmtNode *stmt = allocate_stmt(STMT_REPEAT);
 
     if (stmt != NULL) {
-        stmt->data.repeat_stmt.body = body;
+        stmt->data.repeat_stmt.iterator = iterator;
         stmt->data.repeat_stmt.condition = condition;
+        stmt->data.repeat_stmt.update = update;
+        stmt->data.repeat_stmt.body = body;
+    }
+
+    return stmt;
+}
+
+StmtNode *create_until_stmt(ExprNode *condition, StmtNode *body) {
+    StmtNode *stmt = allocate_stmt(STMT_UNTIL);
+
+    if (stmt != NULL) {
+        stmt->data.until_stmt.condition = condition;
+        stmt->data.until_stmt.body = body;
+    }
+
+    return stmt;
+}
+
+StmtNode *create_doing_stmt(StmtNode *body, ExprNode *condition) {
+    StmtNode *stmt = allocate_stmt(STMT_DOING);
+
+    if (stmt != NULL) {
+        stmt->data.doing_stmt.body = body;
+        stmt->data.doing_stmt.condition = condition;
     }
 
     return stmt;
@@ -477,7 +521,7 @@ void free_statement_list(StmtNode *stmt) {
                 free(stmt->data.read_stmt.name);
                 break;
             case STMT_WRITE:
-                free_expr(stmt->data.write_stmt.value);
+                free_expr_list(stmt->data.write_stmt.values);
                 break;
             case STMT_BLOCK:
                 free_statement_list(stmt->data.block.statements);
@@ -488,8 +532,18 @@ void free_statement_list(StmtNode *stmt) {
                 free_statement_list(stmt->data.chk_stmt.else_branch);
                 break;
             case STMT_REPEAT:
+                free(stmt->data.repeat_stmt.iterator);
                 free_statement_list(stmt->data.repeat_stmt.body);
                 free_expr(stmt->data.repeat_stmt.condition);
+                free_expr(stmt->data.repeat_stmt.update);
+                break;
+            case STMT_UNTIL:
+                free_expr(stmt->data.until_stmt.condition);
+                free_statement_list(stmt->data.until_stmt.body);
+                break;
+            case STMT_DOING:
+                free_statement_list(stmt->data.doing_stmt.body);
+                free_expr(stmt->data.doing_stmt.condition);
                 break;
             case STMT_DECIDE:
                 free_expr(stmt->data.decide_stmt.selector);

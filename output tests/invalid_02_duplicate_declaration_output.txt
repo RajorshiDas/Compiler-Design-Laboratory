@@ -1,0 +1,16 @@
+Test File: invalid_02_duplicate_declaration.txt
+Exit Code: 1
+
+compiler_report_check.exe : Semantic error: variable 'a' is already declared in this scope.
+At line:12 char:19
++         $output = & $compiler $test.FullName 2>&1 | Out-String
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Semantic error:... in this scope.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Starting parsing...
+Parsing completed with 1 semantic error(s).
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------

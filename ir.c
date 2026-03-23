@@ -61,6 +61,17 @@ static char *make_string_text(const char *value) {
     return text;
 }
 
+static char *make_char_text(char value) {
+    char buffer[8];
+
+    snprintf(buffer, sizeof(buffer), "'%c'", value);
+    return copy_text(buffer);
+}
+
+static char *make_bool_text(int value) {
+    return copy_text(value ? "1" : "0");
+}
+
 static IROpcode opcode_from_binary_operator(const char *op) {
     if (strcmp(op, "+") == 0) {
         return IR_ADD;
@@ -73,6 +84,18 @@ static IROpcode opcode_from_binary_operator(const char *op) {
     }
     if (strcmp(op, "/") == 0) {
         return IR_DIV;
+    }
+    if (strcmp(op, "%") == 0) {
+        return IR_MOD;
+    }
+    if (strcmp(op, "AND") == 0) {
+        return IR_AND;
+    }
+    if (strcmp(op, "OR") == 0) {
+        return IR_OR;
+    }
+    if (strcmp(op, "XOR") == 0) {
+        return IR_XOR;
     }
     if (strcmp(op, "<") == 0) {
         return IR_LT;
@@ -184,6 +207,12 @@ char *generate_expression_ir(ExprNode *expr, IRList **code) {
         case EXPR_STRING_LITERAL:
             return make_string_text(expr->data.string_value);
 
+        case EXPR_CHAR_LITERAL:
+            return make_char_text(expr->data.char_value);
+
+        case EXPR_BOOL_LITERAL:
+            return make_bool_text(expr->data.bool_value);
+
         case EXPR_VARIABLE:
             return copy_text(expr->data.identifier);
 
@@ -222,6 +251,35 @@ char *generate_expression_ir(ExprNode *expr, IRList **code) {
 
             if (strcmp(expr->data.unary.op, "+") == 0) {
                 return generate_expression_ir(expr->data.unary.operand, code);
+            }
+
+            if (strcmp(expr->data.unary.op, "!") == 0) {
+                char *operand = generate_expression_ir(expr->data.unary.operand, code);
+
+                result = new_temp();
+                *code = append_code(
+                    *code,
+                    create_ir_list(create_ir_instruction(IR_EQ,
+                                                         result,
+                                                         operand,
+                                                         "0",
+                                                         NULL)));
+                free(operand);
+                return result;
+            }
+
+            if (strcmp(expr->data.unary.op, "ABS") == 0) {
+                ArgumentList *args = create_argument_list(expr->data.unary.operand);
+                ExprNode fake_call;
+
+                memset(&fake_call, 0, sizeof(fake_call));
+                fake_call.kind = EXPR_FUNCTION_CALL;
+                fake_call.value_type = expr->value_type;
+                fake_call.data.call.name = "abs";
+                fake_call.data.call.arguments = args;
+                result = generate_expression_ir(&fake_call, code);
+                free(args);
+                return result;
             }
 
             return generate_expression_ir(expr->data.unary.operand, code);
@@ -307,16 +365,21 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                 break;
 
             case STMT_WRITE: {
-                char *value = generate_expression_ir(stmt->data.write_stmt.value, &code);
+                ExprList *value = stmt->data.write_stmt.values;
 
-                code = append_code(
-                    code,
-                    create_ir_list(create_ir_instruction(IR_WRITE,
-                                                         NULL,
-                                                         value,
-                                                         NULL,
-                                                         NULL)));
-                free(value);
+                while (value != NULL) {
+                    char *text = generate_expression_ir(value->expr, &code);
+
+                    code = append_code(
+                        code,
+                        create_ir_list(create_ir_instruction(IR_WRITE,
+                                                             NULL,
+                                                             text,
+                                                             NULL,
+                                                             NULL)));
+                    free(text);
+                    value = value->next;
+                }
                 break;
             }
 
@@ -377,7 +440,9 @@ IRList *generate_statement_ir(StmtNode *stmt) {
 
             case STMT_REPEAT: {
                 char *start_label = new_label();
+                char *end_label = new_label();
                 char *condition_value;
+                char *update_value;
 
                 code = append_code(
                     code,
@@ -388,6 +453,16 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          start_label)));
                 code = append_code(code, generate_statement_ir(stmt->data.repeat_stmt.body));
 
+                update_value = generate_expression_ir(stmt->data.repeat_stmt.update, &code);
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_ASSIGN,
+                                                         stmt->data.repeat_stmt.iterator,
+                                                         update_value,
+                                                         NULL,
+                                                         NULL)));
+                free(update_value);
+
                 condition_value = generate_expression_ir(stmt->data.repeat_stmt.condition, &code);
                 code = append_code(
                     code,
@@ -395,8 +470,73 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          condition_value,
                                                          NULL,
+                                                         end_label)));
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_GOTO,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
                                                          start_label)));
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         end_label)));
 
+                free(condition_value);
+                free(start_label);
+                free(end_label);
+                break;
+            }
+
+            case STMT_UNTIL: {
+                char *start_label = new_label();
+                char *condition_value;
+
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         start_label)));
+                code = append_code(code, generate_statement_ir(stmt->data.until_stmt.body));
+                condition_value = generate_expression_ir(stmt->data.until_stmt.condition, &code);
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_IF_FALSE_GOTO,
+                                                         NULL,
+                                                         condition_value,
+                                                         NULL,
+                                                         start_label)));
+                free(condition_value);
+                free(start_label);
+                break;
+            }
+
+            case STMT_DOING: {
+                char *start_label = new_label();
+                char *condition_value;
+
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         start_label)));
+                code = append_code(code, generate_statement_ir(stmt->data.doing_stmt.body));
+                condition_value = generate_expression_ir(stmt->data.doing_stmt.condition, &code);
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_IF_FALSE_GOTO,
+                                                         NULL,
+                                                         condition_value,
+                                                         NULL,
+                                                         start_label)));
                 free(condition_value);
                 free(start_label);
                 break;
@@ -410,19 +550,29 @@ IRList *generate_statement_ir(StmtNode *stmt) {
             case STMT_DECIDE: {
                 CaseNode *case_node = stmt->data.decide_stmt.cases;
                 char *end_label = new_label();
+                char *selector_value = generate_expression_ir(stmt->data.decide_stmt.selector, &code);
 
                 while (case_node != NULL) {
                     char *next_label = new_label();
-                    char *condition_value = generate_expression_ir(case_node->condition, &code);
+                    char *case_value = generate_expression_ir(case_node->condition, &code);
+                    char *condition_temp = new_temp();
 
+                    code = append_code(
+                        code,
+                        create_ir_list(create_ir_instruction(IR_EQ,
+                                                             condition_temp,
+                                                             selector_value,
+                                                             case_value,
+                                                             NULL)));
                     code = append_code(
                         code,
                         create_ir_list(create_ir_instruction(IR_IF_FALSE_GOTO,
                                                              NULL,
-                                                             condition_value,
+                                                             condition_temp,
                                                              NULL,
                                                              next_label)));
-                    free(condition_value);
+                    free(case_value);
+                    free(condition_temp);
 
                     code = append_code(code, generate_statement_ir(case_node->body));
                     code = append_code(
@@ -454,6 +604,7 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          NULL,
                                                          end_label)));
+                free(selector_value);
                 free(end_label);
                 break;
             }
@@ -534,6 +685,22 @@ void print_ir(const IRList *list) {
 
             case IR_DIV:
                 printf("%s = %s / %s\n", instruction->result, instruction->arg1, instruction->arg2);
+                break;
+
+            case IR_MOD:
+                printf("%s = %s %% %s\n", instruction->result, instruction->arg1, instruction->arg2);
+                break;
+
+            case IR_AND:
+                printf("%s = %s AND %s\n", instruction->result, instruction->arg1, instruction->arg2);
+                break;
+
+            case IR_OR:
+                printf("%s = %s OR %s\n", instruction->result, instruction->arg1, instruction->arg2);
+                break;
+
+            case IR_XOR:
+                printf("%s = %s XOR %s\n", instruction->result, instruction->arg1, instruction->arg2);
                 break;
 
             case IR_LT:

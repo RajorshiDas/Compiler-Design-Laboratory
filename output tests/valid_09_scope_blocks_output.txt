@@ -1,0 +1,90 @@
+Test File: valid_09_scope_blocks.txt
+Exit Code: 0
+
+Starting parsing...
+
+AST:
+Declaration: x (num)
+  Initializer:
+    IntLiteral: 10
+Write:
+  Variable: x
+Block:
+  Declaration: x (num)
+    Initializer:
+      IntLiteral: 99
+  Declaration: y (num)
+    Initializer:
+      BinaryExpr: +
+        Variable: x
+        IntLiteral: 1
+  Write:
+    Variable: y
+  Block:
+    Declaration: x (num)
+      Initializer:
+        IntLiteral: 7
+    Write:
+      Variable: x
+  Write:
+    Variable: x
+Write:
+  Variable: x
+Return:
+  IntLiteral: 0
+
+Optimized AST:
+Declaration: x (num)
+  Initializer:
+    IntLiteral: 10
+Write:
+  Variable: x
+Block:
+  Declaration: x (num)
+    Initializer:
+      IntLiteral: 99
+  Declaration: y (num)
+    Initializer:
+      BinaryExpr: +
+        Variable: x
+        IntLiteral: 1
+  Write:
+    Variable: y
+  Block:
+    Declaration: x (num)
+      Initializer:
+        IntLiteral: 7
+    Write:
+      Variable: x
+  Write:
+    Variable: x
+Write:
+  Variable: x
+Return:
+  IntLiteral: 0
+
+Three-Address Code IR:
+x = 10
+write x
+x = 99
+t1 = x + 1
+y = t1
+write y
+x = 7
+write x
+write x
+write x
+return 0
+
+Generated C code written to generated.c
+10
+100
+7
+99
+10
+Parsing, semantic analysis, and interpretation completed successfully.
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------
+x                    num        10 0

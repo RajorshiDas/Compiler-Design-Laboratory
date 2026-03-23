@@ -1,107 +1,101 @@
 # Compiler Project Test Cases
 
-This folder now covers the interpreter features as well as parsing and semantic checking.
+This folder now targets the report-style language accepted by the upgraded compiler.
 
 The suite includes:
 
-- declarations and assignments
-- arithmetic expressions
-- `read(...)` and `write(...)`
-- strings
-- `chk ... then ... else_try`
-- `repeat doing ... until`
+- `#load mathLib.fx`
+- `start() -> empty { ... }`
+- declarations for `num`, `real`, `chr`, `logic`, and `text`
+- arithmetic, modulus, `AND/OR/NOT/XOR`, and absolute value
+- `read(...)` and multi-argument `write(...)`
+- `chk / else_try / then`
+- `repeat`, `until`, and `doing ... until`
 - `decide / when / otherwise`
-- block scope
-- function definitions, calls, and returns
+- user-defined functions with `-> returnType`
+- builtin math helpers like `power()` and `squart()`
 - semantic, syntax, lexical, and runtime error cases
 
 ## Valid Test Cases
 
 ### `valid_01_declarations.txt`
 Focus:
-- variable declarations
-- comma-separated declarations
-- initialized declarations
+- report-style declarations
+- logic and char literals
+- basic output
 
 ### `valid_02_assignments_expressions.txt`
 Focus:
-- arithmetic execution
-- assignment execution
-- implicit numeric conversion
+- arithmetic precedence
+- modulus
+- XOR
+- absolute value
 
 ### `valid_03_read_write.txt`
 Focus:
-- `read(identifier);`
-- `write(identifier);`
-- `write(expression);`
-- `write("string");`
-
-Note:
-- if no runtime input is provided, the sample still runs using the initial value of `a`
+- `read(identifier)`
+- multi-argument `write(...)`
 
 ### `valid_04_conditionals.txt`
 Focus:
-- `chk (...) then { ... } else_try { ... }`
-- relational evaluation
-- branch execution
+- `chk ... end chk`
+- chained `else_try ... end else_try`
+- `then ... end then`
+- logical operators
 
 ### `valid_05_loops.txt`
 Focus:
-- `repeat doing { ... } until (...)`
-- loop body execution
-- accumulating values across iterations
+- `repeat(init, condition, update)`
+- `until(condition)`
+- `skip` and `stop`
 
 ### `valid_06_strings.txt`
 Focus:
-- text variable initialization
-- text variable output
-- direct string literal output
+- text literals
+- mixed string output in `write`
 
 ### `valid_07_functions.txt`
 Focus:
-- `fx` function definitions
-- parameter passing
-- `stop expr;` return values
-- using function calls inside assignments
+- `fx name(...) -> type`
+- `send expr;`
+- builtin math helpers
 
 ### `valid_08_decide.txt`
 Focus:
-- `decide (...) { when ... otherwise ... }`
-- first matching `when` branch execution
+- `decide selector`
+- `when(value) => ...`
+- `otherwise => ...`
 
 ### `valid_09_scope_blocks.txt`
 Focus:
-- nested block scopes
-- shadowed variables
+- nested block scope
+- variable shadowing
 
 ### `valid_10_full_program.txt`
 Focus:
-- mixed execution in one file
-- functions + loops + conditionals + decide
+- integrated program with functions, loops, and decide
 
 ## Invalid / Error Test Cases
 
 ### `invalid_01_undeclared_variable.txt`
 Focus:
-- use of undeclared identifiers
+- undeclared identifier use
 
 ### `invalid_02_duplicate_declaration.txt`
 Focus:
-- duplicate declarations in the same scope
+- duplicate declaration in one scope
 
 ### `invalid_03_invalid_assignment.txt`
 Focus:
-- invalid assignment types
-- invalid arithmetic involving text
+- incompatible assignment and invalid arithmetic
 
 ### `invalid_04_syntax_error.txt`
 Focus:
-- malformed statements
-- parser recovery
+- malformed `repeat(...)`
 
 ### `invalid_05_invalid_token.txt`
 Focus:
-- lexer rejection of invalid characters
+- lexical rejection of unsupported symbols
 
 ### `invalid_06_division_by_zero.txt`
 Focus:
@@ -109,26 +103,26 @@ Focus:
 
 ### `invalid_07_uninitialized_variable.txt`
 Focus:
-- runtime use of uninitialized variables
+- non-logic expression inside `chk`
 
 ### `invalid_08_wrong_function_arguments.txt`
 Focus:
-- semantic check for wrong function argument count
+- wrong function argument count
 
 ### `invalid_09_return_outside_function.txt`
 Focus:
-- semantic rejection of `stop expr;` outside a function
+- `skip` used outside a loop
 
 ### `invalid_10_function_type_mismatch.txt`
 Focus:
-- semantic rejection of assigning a function's returned text value to a numeric variable
+- function declared return type mismatch
 
 ## Build Command
 
 ```powershell
 bison -d -o parser.tab.c parser.y
 flex scanner.l
-gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c interpreter.c main.c
+gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c -lm
 ```
 
 ## Run One Test
@@ -137,22 +131,8 @@ gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c interpret
 .\compiler.exe tests\valid_05_loops.txt
 ```
 
-## Suggested Run Order
-
-1. `valid_01_declarations.txt`
-2. `valid_02_assignments_expressions.txt`
-3. `valid_04_conditionals.txt`
-4. `valid_05_loops.txt`
-5. `valid_06_strings.txt`
-6. `valid_07_functions.txt`
-7. `valid_08_decide.txt`
-8. `valid_10_full_program.txt`
-
-## Quick Batch Run
+## Batch Run
 
 ```powershell
-Get-ChildItem tests\valid_*.txt | ForEach-Object {
-    Write-Host "`n=== $($_.Name) ==="
-    .\compiler.exe $_.FullName
-}
+powershell -ExecutionPolicy Bypass -File tests\run_tests.ps1
 ```

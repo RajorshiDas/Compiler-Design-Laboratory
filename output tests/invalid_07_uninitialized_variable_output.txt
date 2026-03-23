@@ -1,0 +1,16 @@
+Test File: invalid_07_uninitialized_variable.txt
+Exit Code: 1
+
+compiler_report_check.exe : Semantic error at line 13: chk requires a logic expression, but found num.
+At line:12 char:19
++         $output = & $compiler $test.FullName 2>&1 | Out-String
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Semantic error ... but found num.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Starting parsing...
+Parsing completed with 1 semantic error(s).
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------

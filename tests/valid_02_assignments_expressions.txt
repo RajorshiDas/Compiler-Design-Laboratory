@@ -1,16 +1,27 @@
-// Valid test: assignments and arithmetic expressions.
-// Expected AST behavior: assignment to c with nested binary expression a + (b * 3).
-// Expected interpreter output:
-// 11
-// Expected IR shape:
-// t1 = b * 3
-// t2 = a + t1
-// c = t2
-// write c
+@@ Valid test: arithmetic, modulus, XOR, and absolute value.
+@@ Expected interpreter output:
+@@ 11
+@@ 2
+@@ 7
+@@ 5
 
-num a = 5;
-num b = 2;
-num c;
+#load mathLib.fx
+start() -> empty
+{
+    num a = 5;
+    num b = 2;
+    num c;
 
-c = a + b * 3;
-write(c);
+    c = a + b * 3;
+    write(c);
+
+    c = 17 % 5;
+    write(c);
+
+    c = a XOR b;
+    write(c);
+
+    c = |-5|;
+    write(c);
+    send 0;
+}

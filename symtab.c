@@ -242,6 +242,9 @@ static void print_value_data(DataType type, const ValueData *data) {
         case TYPE_TEXT:
             printf("%s", data->text_value != NULL ? data->text_value : "");
             break;
+        case TYPE_EMPTY:
+            printf("<empty>");
+            break;
         case TYPE_UNKNOWN:
             printf("<unknown>");
             break;
@@ -286,6 +289,8 @@ const char *symbol_type_name(SymbolType type) {
             return "logic";
         case TYPE_TEXT:
             return "text";
+        case TYPE_EMPTY:
+            return "empty";
         default:
             return "error";
     }
@@ -623,6 +628,31 @@ char *decode_string_literal(const char *lexeme) {
 
     decoded[write_index] = '\0';
     return decoded;
+}
+
+char decode_char_literal(const char *lexeme) {
+    if (lexeme == NULL || lexeme[0] == '\0') {
+        return '\0';
+    }
+
+    if (lexeme[1] == '\\') {
+        switch (lexeme[2]) {
+            case 'n':
+                return '\n';
+            case 't':
+                return '\t';
+            case 'r':
+                return '\r';
+            case '\\':
+                return '\\';
+            case '\'':
+                return '\'';
+            default:
+                return lexeme[2];
+        }
+    }
+
+    return lexeme[1];
 }
 
 void print_expr_result(const ExprResult *expr) {

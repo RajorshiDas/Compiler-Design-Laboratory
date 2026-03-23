@@ -1,0 +1,56 @@
+Test File: valid_03_read_write.txt
+Exit Code: 0
+
+Starting parsing...
+
+AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 1
+Read: a
+Write:
+  StringLiteral: "Read value = "
+  Variable: a
+Write:
+  StringLiteral: "Next value = "
+  BinaryExpr: +
+    Variable: a
+    IntLiteral: 1
+Return:
+  IntLiteral: 0
+
+Optimized AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 1
+Read: a
+Write:
+  StringLiteral: "Read value = "
+  Variable: a
+Write:
+  StringLiteral: "Next value = "
+  BinaryExpr: +
+    Variable: a
+    IntLiteral: 1
+Return:
+  IntLiteral: 0
+
+Three-Address Code IR:
+a = 1
+read a
+write "Read value = "
+write a
+write "Next value = "
+t1 = a + 1
+write t1
+return 0
+
+Generated C code written to generated.c
+Read value = 7
+Next value = 8
+Parsing, semantic analysis, and interpretation completed successfully.
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------
+a                    num        7 0

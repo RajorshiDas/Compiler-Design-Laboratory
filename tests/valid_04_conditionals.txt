@@ -1,25 +1,24 @@
-// Valid test: if and if-else.
-// Expected AST behavior: two chk statement nodes.
-// Expected interpreter output:
-// 2
-// 3
-// Expected IR shape for first chk:
-// t1 = a > b
-// ifFalse t1 goto L1
-// write 1
-// goto L2
-// L1:
-// write 2
+@@ Valid test: report-style chk / else_try / then with logical operators.
+@@ Expected interpreter output:
+@@ a is greater than b
+@@ a equals b or is greater
 
-num a = 4;
-num b = 9;
+#load mathLib.fx
+start() -> empty
+{
+    num a = 10;
+    num b = 5;
 
-chk (a > b) then {
-    write(1);
-} else_try {
-    write(2);
-}
+    chk (a > b AND b < 10)
+        write("a is greater than b");
+    end chk
 
-chk (b > a) then {
-    write(3);
+    else_try(a < b)
+        write("a is less than b");
+    end else_try
+    then
+        write("a equals b or is greater");
+    end then
+
+    send 0;
 }

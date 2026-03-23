@@ -1,0 +1,16 @@
+Test File: invalid_10_function_type_mismatch.txt
+Exit Code: 1
+
+compiler_report_check.exe : Semantic error at line 10: function 'greet' sends text but is declared as num.
+At line:12 char:19
++         $output = & $compiler $test.FullName 2>&1 | Out-String
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Semantic error ...eclared as num.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Starting parsing...
+Parsing completed with 1 semantic error(s).
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------

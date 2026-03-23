@@ -1,5 +1,10 @@
-// Invalid test: duplicate declaration in the same scope.
-// Expected behavior: semantic error for redeclaring a.
+@@ Invalid test: duplicate declaration in the same scope.
+@@ Expected behavior: semantic error for redeclaring a.
 
-num a = 1;
-num a = 2;
+#load mathLib.fx
+start() -> empty
+{
+    num a = 1;
+    num a = 2;
+    send 0;
+}

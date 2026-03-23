@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 
 long long square(long long x)
 {
@@ -7,30 +8,25 @@ long long square(long long x)
 
 int main(void)
 {
-    long long i = 0;
+    long long i = 1;
     long long value;
-    do
+    for (; (i <= 3); i = (i + 1))
     {
-        i = (i + 1);
         value = square(i);
-        if ((value > 2))
-        {
-            printf("%s\n", "big");
-        }
-        else
-        {
-            printf("%s\n", "small");
-        }
-        printf("%lld\n", value);
+        printf("%s", "square = ");
+        printf("%lld", value);
+        printf("\n");
     }
-    while (!((i == 3)));
-    if ((i == 3))
+    if (i == 4)
     {
-        printf("%s\n", "finished");
+        printf("%s", "finished");
+        printf("\n");
     }
     else
     {
-        printf("%s\n", "unexpected");
+        printf("%s", "unexpected");
+        printf("\n");
     }
+    return 0;
     return 0;
 }

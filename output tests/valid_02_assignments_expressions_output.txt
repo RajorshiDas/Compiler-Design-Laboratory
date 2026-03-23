@@ -1,0 +1,110 @@
+Test File: valid_02_assignments_expressions.txt
+Exit Code: 0
+
+Starting parsing...
+
+AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 5
+Declaration: b (num)
+  Initializer:
+    IntLiteral: 2
+Declaration: c (num)
+Assignment: c
+  BinaryExpr: +
+    Variable: a
+    BinaryExpr: *
+      Variable: b
+      IntLiteral: 3
+Write:
+  Variable: c
+Assignment: c
+  BinaryExpr: %
+    IntLiteral: 17
+    IntLiteral: 5
+Write:
+  Variable: c
+Assignment: c
+  BinaryExpr: XOR
+    Variable: a
+    Variable: b
+Write:
+  Variable: c
+Assignment: c
+  UnaryExpr: ABS
+    UnaryExpr: -
+      IntLiteral: 5
+Write:
+  Variable: c
+Return:
+  IntLiteral: 0
+
+Optimized AST:
+Declaration: a (num)
+  Initializer:
+    IntLiteral: 5
+Declaration: b (num)
+  Initializer:
+    IntLiteral: 2
+Declaration: c (num)
+Assignment: c
+  BinaryExpr: +
+    Variable: a
+    BinaryExpr: *
+      Variable: b
+      IntLiteral: 3
+Write:
+  Variable: c
+Assignment: c
+  BinaryExpr: %
+    IntLiteral: 17
+    IntLiteral: 5
+Write:
+  Variable: c
+Assignment: c
+  BinaryExpr: XOR
+    Variable: a
+    Variable: b
+Write:
+  Variable: c
+Assignment: c
+  UnaryExpr: ABS
+    IntLiteral: -5
+Write:
+  Variable: c
+Return:
+  IntLiteral: 0
+
+Three-Address Code IR:
+a = 5
+b = 2
+t1 = b * 3
+t2 = a + t1
+c = t2
+write c
+t3 = 17 % 5
+c = t3
+write c
+t4 = a XOR b
+c = t4
+write c
+param -5
+t5 = call abs, 1
+c = t5
+write c
+return 0
+
+Generated C code written to generated.c
+11
+2
+7
+5
+Parsing, semantic analysis, and interpretation completed successfully.
+
+Symbol Table:
+Identifier           Type       Value                Scope 
+-------------------- ---------- -------------------- ------
+a                    num        5 0     
+b                    num        2 0     
+c                    num        5 0

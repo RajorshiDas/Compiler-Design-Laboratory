@@ -1,22 +1,45 @@
-// Valid test: repeat-until loop.
-// Expected AST behavior: one repeat statement with two assignments in the body.
-// Expected interpreter output:
-// 1
-// 3
-// 6
-// Expected IR shape:
-// L1:
-// i = i + 1
-// sum = sum + i
-// write sum
-// tN = i == 3
-// ifFalse tN goto L1
+@@ Valid test: all three loop forms plus skip and stop.
+@@ Expected interpreter output:
+@@ Repeat loop iteration: 1
+@@ Repeat loop iteration: 2
+@@ Repeat loop iteration: 3
+@@ While loop iteration: 1
+@@ While loop iteration: 2
+@@ While loop iteration: 3
+@@ Loop j = 0
+@@ Loop j = 1
+@@ Loop j = 3
 
-num i = 0;
-num sum = 0;
+#load mathLib.fx
+start() -> empty
+{
+    num i = 1;
+    num j = 0;
 
-repeat doing {
-    i = i + 1;
-    sum = sum + i;
-    write(sum);
-} until (i == 3);
+    repeat(i, i <= 3, i + 1)
+    {
+        write("Repeat loop iteration: ", i);
+    }
+
+    i = 1;
+    until(i > 3)
+    {
+        write("While loop iteration: ", i);
+        i = i + 1;
+    }
+
+    repeat(j, j < 5, j + 1)
+    {
+        chk(j == 2)
+            skip;
+        end chk
+
+        chk(j == 4)
+            stop;
+        end chk
+
+        write("Loop j = ", j);
+    }
+
+    send 0;
+}
