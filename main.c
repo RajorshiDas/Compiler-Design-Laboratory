@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
+typedef Program ASTNode;
+#include "ir.h"
 #include "interpreter.h"
 #include "symtab.h"
 
@@ -186,6 +188,7 @@ static void print_ast(const Program *program) {
 int main(int argc, char *argv[]) {
     int parse_status;
     int runtime_errors = 0;
+    IRList *ir_code = NULL;
 
     if (argc > 1) {
         yyin = fopen(argv[1], "r");
@@ -202,6 +205,9 @@ int main(int argc, char *argv[]) {
 
     if (parse_status == 0 && get_semantic_error_count() == 0 && parsed_program != NULL) {
         print_ast(parsed_program);
+        ir_code = generate_ir(parsed_program);
+        printf("\nThree-Address Code IR:\n");
+        print_ir(ir_code);
         runtime_errors = execute_program(parsed_program);
 
         if (runtime_errors == 0) {
@@ -214,6 +220,7 @@ int main(int argc, char *argv[]) {
     }
 
     print_symbol_table();
+    free_ir_list(ir_code);
     free_program(parsed_program);
 
     if (yyin != NULL && yyin != stdin) {
