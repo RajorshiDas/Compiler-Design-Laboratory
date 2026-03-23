@@ -1,7 +1,26 @@
+// Valid test: nested blocks and scope shadowing.
+// Expected AST behavior: outer declaration, nested block with shadowed x, inner block with another x.
+// Expected interpreter output:
+// 10
+// 100
+// 7
+// 99
+// 10
+
 num x = 10;
+
+write(x);
 
 {
     num x = 99;
+    num y = x + 1;
+    write(y);
+
+    {
+        num x = 7;
+        write(x);
+    }
+
     write(x);
 }
 

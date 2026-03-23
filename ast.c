@@ -254,11 +254,12 @@ StmtNode *create_assignment_stmt(char *name, ExprNode *value) {
     return stmt;
 }
 
-StmtNode *create_read_stmt(char *name) {
+StmtNode *create_read_stmt(char *name, SymbolType declared_type) {
     StmtNode *stmt = allocate_stmt(STMT_READ);
 
     if (stmt != NULL) {
         stmt->data.read_stmt.name = name;
+        stmt->data.read_stmt.declared_type = declared_type;
     }
 
     return stmt;

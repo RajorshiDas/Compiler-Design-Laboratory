@@ -39,6 +39,7 @@ typedef struct ExprResult {
 } ExprResult;
 
 void enter_scope(void);
+void exit_scope(void);
 void leave_scope(void);
 
 int insert_symbol(const char *name, DataType type);

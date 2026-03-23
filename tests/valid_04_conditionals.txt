@@ -1,16 +1,25 @@
-num a = 7;
-num b = 3;
+// Valid test: if and if-else.
+// Expected AST behavior: two chk statement nodes.
+// Expected interpreter output:
+// 2
+// 3
+// Expected IR shape for first chk:
+// t1 = a > b
+// ifFalse t1 goto L1
+// write 1
+// goto L2
+// L1:
+// write 2
+
+num a = 4;
+num b = 9;
 
 chk (a > b) then {
-    write("a is bigger");
-    write(a);
+    write(1);
 } else_try {
-    write("b is bigger");
-    write(b);
+    write(2);
 }
 
-chk (a == b) then {
-    write(100);
-} else_try {
-    write(200);
+chk (b > a) then {
+    write(3);
 }

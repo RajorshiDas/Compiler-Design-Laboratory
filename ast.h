@@ -95,6 +95,7 @@ struct StmtNode {
         } assignment;
         struct {
             char *name;
+            SymbolType declared_type;
         } read_stmt;
         struct {
             ExprNode *value;
@@ -157,7 +158,7 @@ CaseNode *append_case_list(CaseNode *list, CaseNode *item);
 
 StmtNode *create_declaration_stmt(SymbolType declared_type, char *name, ExprNode *initializer);
 StmtNode *create_assignment_stmt(char *name, ExprNode *value);
-StmtNode *create_read_stmt(char *name);
+StmtNode *create_read_stmt(char *name, SymbolType declared_type);
 StmtNode *create_write_stmt(ExprNode *value);
 StmtNode *create_block_stmt(StmtNode *statements);
 StmtNode *create_chk_stmt(ExprNode *condition, StmtNode *then_branch, StmtNode *else_branch);

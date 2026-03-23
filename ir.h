@@ -49,7 +49,7 @@ IRInstruction *create_ir_instruction(IROpcode op,
 IRList *create_ir_list(IRInstruction *instruction);
 IRList *append_ir(IRList *list, IRList *item);
 
-IRList *generate_ir(ASTNode *root);
+IRList *generate_ir(Program *root);
 IRList *generate_program_ir(Program *program);
 IRList *generate_statement_ir(StmtNode *stmt);
 char *generate_expression_ir(ExprNode *expr, IRList **code);

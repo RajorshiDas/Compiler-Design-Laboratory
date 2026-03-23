@@ -1,16 +1,24 @@
+// Valid test: function declarations, parameter passing, nested calls, and returns.
+// Expected AST behavior: two function definitions, then assignment using nested call twice(add(...)).
+// Expected interpreter output:
+// 10
+// Expected IR shape in main part:
+// param 2
+// param 3
+// t1 = call add, 2
+// param t1
+// t2 = call twice, 1
+// result = t2
+
 fx add(num x, num y) {
-    stop x + y;
+    return x + y;
 }
 
-fx mix(num a, real b) {
-    stop a + b;
+fx twice(num value) {
+    return value + value;
 }
 
-num sum;
-real mixed;
+num result;
 
-sum = add(4, 6);
-mixed = mix(3, 2.5);
-
-write(sum);
-write(mixed);
+result = twice(add(2, 3));
+write(result);

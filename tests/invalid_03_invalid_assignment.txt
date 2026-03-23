@@ -1,7 +1,10 @@
+// Invalid test: type errors in assignment and arithmetic.
+// Expected behavior:
+// - cannot assign text to num
+// - invalid arithmetic between text and num
+
 num a;
 text msg = "hello";
-real r = 3.5;
 
 a = msg;
 a = msg + 1;
-msg = r;

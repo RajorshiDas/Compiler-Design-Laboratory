@@ -3,7 +3,6 @@
 #include <string.h>
 #include "ast.h"
 
-typedef Program ASTNode;
 #include "ir.h"
 
 static int temp_counter = 0;
@@ -404,10 +403,60 @@ IRList *generate_statement_ir(StmtNode *stmt) {
             }
 
             case STMT_FUNCTION_DEF:
-            case STMT_DECIDE:
             case STMT_SKIP:
             case STMT_STOP:
                 break;
+
+            case STMT_DECIDE: {
+                CaseNode *case_node = stmt->data.decide_stmt.cases;
+                char *end_label = new_label();
+
+                while (case_node != NULL) {
+                    char *next_label = new_label();
+                    char *condition_value = generate_expression_ir(case_node->condition, &code);
+
+                    code = append_code(
+                        code,
+                        create_ir_list(create_ir_instruction(IR_IF_FALSE_GOTO,
+                                                             NULL,
+                                                             condition_value,
+                                                             NULL,
+                                                             next_label)));
+                    free(condition_value);
+
+                    code = append_code(code, generate_statement_ir(case_node->body));
+                    code = append_code(
+                        code,
+                        create_ir_list(create_ir_instruction(IR_GOTO,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             end_label)));
+                    code = append_code(
+                        code,
+                        create_ir_list(create_ir_instruction(IR_LABEL,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             next_label)));
+                    free(next_label);
+                    case_node = case_node->next;
+                }
+
+                if (stmt->data.decide_stmt.otherwise_branch != NULL) {
+                    code = append_code(code, generate_statement_ir(stmt->data.decide_stmt.otherwise_branch));
+                }
+
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         end_label)));
+                free(end_label);
+                break;
+            }
 
             case STMT_RETURN: {
                 char *value = generate_expression_ir(stmt->data.return_stmt.value, &code);
@@ -441,7 +490,7 @@ IRList *generate_program_ir(Program *program) {
     return generate_statement_ir(program->statements);
 }
 
-IRList *generate_ir(ASTNode *root) {
+IRList *generate_ir(Program *root) {
     return generate_program_ir(root);
 }
 

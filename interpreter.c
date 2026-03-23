@@ -640,20 +640,74 @@ static void execute_assignment_statement(StmtNode *node) {
 }
 
 static void execute_read_statement(StmtNode *node) {
-    long long input_value;
-    ExprResult value;
+    ExprResult value = make_invalid_result();
+    char text_buffer[1024];
+    double real_value;
+    long long num_value;
+    int logic_value;
+    char char_value;
 
     if (!is_declared(node->data.read_stmt.name)) {
         report_runtime_error("read target is not declared.");
         return;
     }
 
-    if (scanf("%lld", &input_value) != 1) {
-        report_runtime_error("failed to read integer input.");
-        return;
+    switch (node->data.read_stmt.declared_type) {
+        case TYPE_NUM:
+            if (scanf("%lld", &num_value) != 1) {
+                report_runtime_error("failed to read numeric input.");
+                return;
+            }
+            value = make_num_result(num_value);
+            break;
+
+        case TYPE_REAL:
+            if (scanf("%lf", &real_value) != 1) {
+                report_runtime_error("failed to read real input.");
+                return;
+            }
+            value = make_real_result(real_value);
+            break;
+
+        case TYPE_BIGREAL:
+            if (scanf("%lf", &real_value) != 1) {
+                report_runtime_error("failed to read bigreal input.");
+                return;
+            }
+            value = make_bigreal_result(real_value);
+            break;
+
+        case TYPE_LOGIC:
+            if (scanf("%d", &logic_value) != 1) {
+                report_runtime_error("failed to read logic input.");
+                return;
+            }
+            value = make_logic_result(logic_value);
+            break;
+
+        case TYPE_CHAR:
+            if (scanf(" %c", &char_value) != 1) {
+                report_runtime_error("failed to read character input.");
+                return;
+            }
+            value.type = TYPE_CHAR;
+            value.has_value = 1;
+            value.data.chr_value = char_value;
+            break;
+
+        case TYPE_TEXT:
+            if (scanf("%1023s", text_buffer) != 1) {
+                report_runtime_error("failed to read text input.");
+                return;
+            }
+            value = make_text_result(text_buffer);
+            break;
+
+        default:
+            report_runtime_error("unsupported read target type.");
+            return;
     }
 
-    value = make_num_result(input_value);
     if (!check_assignment(node->data.read_stmt.name, value.type) ||
         !set_symbol_value(node->data.read_stmt.name, &value)) {
         report_runtime_error("could not store input value.");
@@ -738,7 +792,7 @@ static void execute_decide_statement(StmtNode *node) {
     while (case_node != NULL) {
         ExprResult case_value = evaluate_expression(case_node->condition);
 
-        if (case_value.has_value && values_equal(&selector, &case_value)) {
+        if (case_value.has_value && result_is_true(&case_value)) {
             free_expr_result(&case_value);
             free_expr_result(&selector);
             execute_statement_list(case_node->body);

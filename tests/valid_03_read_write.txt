@@ -1,7 +1,15 @@
-num a = 5;
-real b = 1.5;
+// Valid test: read and write.
+// Sample stdin:
+// 7
+// Expected AST behavior: one read statement and three write statements.
+// Expected interpreter output with sample stdin:
+// 7
+// 8
+// done
+
+num a = 1;
 
 read(a);
 write(a);
-write(a + b);
-write("hello");
+write(a + 1);
+write("done");

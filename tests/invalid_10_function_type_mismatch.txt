@@ -1,6 +1,10 @@
-fx bad(num x) {
-    stop "hello";
+// Invalid test: function return type used in an incompatible assignment.
+// Expected behavior: semantic error assigning returned text value to num variable.
+
+fx greet(text name) {
+    return name;
 }
 
-num result;
-result = bad(3);
+num value;
+
+value = greet("compiler");

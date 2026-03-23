@@ -1,10 +1,15 @@
-num choice = 2;
+// Valid test: decide / when / otherwise.
+// Expected AST behavior: decide node with two when clauses and one otherwise clause.
+// Expected interpreter output:
+// two
 
-decide (choice) {
-    when choice == 1 then {
+num x = 2;
+
+decide (x) {
+    when x == 1 then {
         write("one");
     }
-    when choice == 2 then {
+    when x == 2 then {
         write("two");
     }
     otherwise then {

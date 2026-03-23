@@ -1,3 +1,9 @@
+// Invalid test: lexical errors that should not stop scanning immediately.
+// Expected behavior:
+// - lexical errors reported for $, % and ^
+// - parser still reaches write(a)
+// - interpreter output may still print 5 if parsing succeeds
+
 num a = 5;
-a = 3 $ 4;
-write(@);
+$ % ^
+write(a);

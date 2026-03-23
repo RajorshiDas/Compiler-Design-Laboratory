@@ -3,6 +3,7 @@
 #include "ast.h"
 typedef Program ASTNode;
 #include "ir.h"
+#include "codegen.h"
 #include "interpreter.h"
 #include "symtab.h"
 
@@ -189,6 +190,7 @@ int main(int argc, char *argv[]) {
     int parse_status;
     int runtime_errors = 0;
     IRList *ir_code = NULL;
+    FILE *c_output = NULL;
 
     if (argc > 1) {
         yyin = fopen(argv[1], "r");
@@ -208,6 +210,15 @@ int main(int argc, char *argv[]) {
         ir_code = generate_ir(parsed_program);
         printf("\nThree-Address Code IR:\n");
         print_ir(ir_code);
+        c_output = fopen("generated.c", "w");
+        if (c_output != NULL) {
+            generate_c_code(parsed_program, c_output);
+            fclose(c_output);
+            c_output = NULL;
+            printf("\nGenerated C code written to generated.c\n");
+        } else {
+            perror("Error creating generated.c");
+        }
         runtime_errors = execute_program(parsed_program);
 
         if (runtime_errors == 0) {

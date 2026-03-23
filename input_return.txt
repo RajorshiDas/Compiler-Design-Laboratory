@@ -1,0 +1,10 @@
+fx add(num x, num y) {
+    return x + y;
+}
+
+num a = 5;
+num b = 7;
+num c;
+
+c = add(a, b);
+write(c);

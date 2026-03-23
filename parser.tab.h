@@ -72,28 +72,29 @@
      WHEN = 277,
      OTHERWISE = 278,
      STOP = 279,
-     PLUS = 280,
-     MINUS = 281,
-     STAR = 282,
-     SLASH = 283,
-     ASSIGN = 284,
-     EQ = 285,
-     NEQ = 286,
-     LT = 287,
-     GT = 288,
-     LE = 289,
-     GE = 290,
-     SEMICOLON = 291,
-     COMMA = 292,
-     LPAREN = 293,
-     RPAREN = 294,
-     LBRACE = 295,
-     RBRACE = 296,
-     ID = 297,
-     STRING = 298,
-     INT_LITERAL = 299,
-     FLOAT_LITERAL = 300,
-     UMINUS = 301
+     RETURN = 280,
+     PLUS = 281,
+     MINUS = 282,
+     STAR = 283,
+     SLASH = 284,
+     ASSIGN = 285,
+     EQ = 286,
+     NEQ = 287,
+     LT = 288,
+     GT = 289,
+     LE = 290,
+     GE = 291,
+     SEMICOLON = 292,
+     COMMA = 293,
+     LPAREN = 294,
+     RPAREN = 295,
+     LBRACE = 296,
+     RBRACE = 297,
+     ID = 298,
+     STRING = 299,
+     INT_LITERAL = 300,
+     FLOAT_LITERAL = 301,
+     UMINUS = 302
    };
 #endif
 
@@ -119,7 +120,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 123 "parser.tab.h"
+#line 124 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

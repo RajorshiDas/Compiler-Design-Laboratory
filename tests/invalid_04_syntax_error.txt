@@ -1,4 +1,7 @@
-num a = ;
-real b
-write(a + );
-read();
+// Invalid test: syntax error with statement-level recovery.
+// Expected behavior: syntax error near ';' in assignment, parser continues to later statements.
+
+num a = 5;
+a = 1 + ;
+num b = 2;
+write(b);

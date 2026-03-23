@@ -1,5 +1,16 @@
-num a;
-real b;
-bigreal x, y, z;
-num count = 5;
-real rate = 3.14;
+// Valid test: declarations and default initialization.
+// Expected AST behavior: declaration nodes with and without initializers.
+// Expected interpreter output:
+// 0
+// 10
+// 3.5
+// hello
+
+num a, b = 10;
+real r = 3.5;
+text msg = "hello";
+
+write(a);
+write(b);
+write(r);
+write(msg);

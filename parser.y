@@ -67,7 +67,7 @@ int get_semantic_error_count(void) {
     CaseNode *caseclause;
 }
 
-%token LOAD SET NUM_TYPE REAL_TYPE BIGREAL_TYPE CHR_TYPE LOGIC_TYPE TEXT_TYPE READ WRITE FX CHK ELSE_TRY THEN REPEAT UNTIL DOING SKIP DECIDE WHEN OTHERWISE STOP
+%token LOAD SET NUM_TYPE REAL_TYPE BIGREAL_TYPE CHR_TYPE LOGIC_TYPE TEXT_TYPE READ WRITE FX CHK ELSE_TRY THEN REPEAT UNTIL DOING SKIP DECIDE WHEN OTHERWISE STOP RETURN
 %token PLUS MINUS STAR SLASH ASSIGN EQ NEQ LT GT LE GE
 %token SEMICOLON COMMA LPAREN RPAREN LBRACE RBRACE
 %token <strval> ID STRING
@@ -76,7 +76,7 @@ int get_semantic_error_count(void) {
 
 %type <type> type_specifier
 %type <expr> condition expression term factor
-%type <stmt> statement_list statement sync_semi declaration id_list id_item assignment_statement read_statement write_statement block chk_statement else_part repeat_statement decide_statement otherwise_clause_opt function_definition
+%type <stmt> statement_list statement sync_semi declaration id_list id_item assignment_statement read_statement write_statement block chk_statement else_part repeat_statement decide_statement otherwise_clause_opt function_definition return_statement
 %type <param> parameter_list_opt parameter_list parameter function_header
 %type <arglist> argument_list_opt argument_list
 %type <caseclause> when_clause_list when_clause
@@ -118,6 +118,7 @@ statement_list
 sync_semi
     : error SEMICOLON
       {
+          yyerror("recovering at statement terminator");
           yyerrok;
           $$ = NULL;
       }
@@ -129,6 +130,7 @@ statement
     | read_statement
     | write_statement
     | function_definition
+    | return_statement
     | chk_statement
     | repeat_statement
     | decide_statement
@@ -155,6 +157,19 @@ statement
       {
           yyerror("invalid statement skipped");
           $$ = NULL;
+      }
+    ;
+
+return_statement
+    : RETURN expression SEMICOLON
+      {
+          if (function_stack_top == 0) {
+              fprintf(stderr, "Semantic error at line %d: return is only valid inside a function.\n", yylineno);
+              semantic_errors++;
+          } else {
+              note_function_return(($2)->value_type);
+          }
+          $$ = create_return_stmt($2);
       }
     ;
 
@@ -208,14 +223,14 @@ parameter_list
       }
     | parameter_list COMMA parameter
       {
-          $$ = append_param_list($1, $3);
+          $$ = append_parameter_list($1, $3);
       }
     ;
 
 parameter
     : type_specifier ID
       {
-          $$ = create_param_node((SymbolType)$1, $2);
+          $$ = create_parameter_node((SymbolType)$1, $2);
       }
     ;
 
@@ -301,8 +316,10 @@ assignment_statement
 read_statement
     : READ LPAREN ID RPAREN SEMICOLON
       {
-          require_declared_identifier($3, NULL);
-          $$ = create_read_stmt($3);
+          SymbolType type;
+
+          require_declared_identifier($3, &type);
+          $$ = create_read_stmt($3, type);
       }
     | READ LPAREN error RPAREN SEMICOLON
       {
@@ -464,11 +481,11 @@ argument_list_opt
 argument_list
     : expression
       {
-          $$ = create_expr_list($1);
+          $$ = create_argument_list($1);
       }
     | argument_list COMMA expression
       {
-          $$ = append_expr_list($1, create_expr_list($3));
+          $$ = append_argument_list($1, create_argument_list($3));
       }
     ;
 
@@ -678,7 +695,12 @@ static SymbolType lookup_function_return_type(const char *name) {
     FunctionSignature *signature = find_function_signature(name);
 
     if (signature == NULL) {
-        return TYPE_UNKNOWN;
+        fprintf(stderr,
+                "Semantic error at line %d: function '%s' is not defined.\n",
+                yylineno,
+                name);
+        semantic_errors++;
+        return TYPE_INVALID;
     }
 
     return signature->return_type;
@@ -809,16 +831,15 @@ static void note_function_return(SymbolType type) {
 }
 
 void yyerror(const char *message) {
-    if (yytext != NULL && yytext[0] != '\0') {
-        fprintf(stderr,
-                "Syntax error at line %d near '%s': %s\n",
-                yylineno,
-                yytext,
-                message);
-    } else {
-        fprintf(stderr,
-                "Syntax error at line %d: %s\n",
-                yylineno,
-                message);
+    const char *near_text = yytext;
+
+    if (near_text == NULL || near_text[0] == '\0') {
+        near_text = "end of input";
     }
+
+    fprintf(stderr,
+            "Syntax error at line %d near '%s': %s\n",
+            yylineno,
+            near_text,
+            message);
 }

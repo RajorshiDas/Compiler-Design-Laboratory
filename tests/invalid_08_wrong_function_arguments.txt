@@ -1,6 +1,11 @@
+// Invalid test: wrong number of function arguments.
+// Expected behavior: semantic error for calling add with one argument instead of two.
+
 fx add(num x, num y) {
-    stop x + y;
+    return x + y;
 }
 
 num result;
-result = add(5);
+
+result = add(1);
+write(result);

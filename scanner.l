@@ -76,6 +76,7 @@ STRING_PATTERN      \"([^\\\n]|\\.)*\"
 "when"                  { return WHEN; }
 "otherwise"             { return OTHERWISE; }
 "stop"                  { return STOP; }
+"return"                { return RETURN; }
 
 "=="                    { return EQ; }
 "!="                    { return NEQ; }
@@ -118,7 +119,7 @@ STRING_PATTERN      \"([^\\\n]|\\.)*\"
 
 .                       {
                             fprintf(stderr,
-                                    "Lexical error at line %d: invalid token '%s'\n",
+                                    "Lexical error at line %d: invalid token \"%s\" skipped\n",
                                     yylineno,
                                     yytext);
                         }

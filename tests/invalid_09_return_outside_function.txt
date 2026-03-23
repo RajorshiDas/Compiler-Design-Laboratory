@@ -1,2 +1,5 @@
-num x = 5;
-stop x + 1;
+// Invalid test: return statement outside a function.
+// Expected behavior: semantic error because return is only valid inside a function.
+
+num a = 5;
+return a;

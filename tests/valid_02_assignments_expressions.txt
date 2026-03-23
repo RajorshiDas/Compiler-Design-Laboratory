@@ -1,7 +1,16 @@
-num a = 5;
-real b = 2.5;
-bigreal c;
+// Valid test: assignments and arithmetic expressions.
+// Expected AST behavior: assignment to c with nested binary expression a + (b * 3).
+// Expected interpreter output:
+// 11
+// Expected IR shape:
+// t1 = b * 3
+// t2 = a + t1
+// c = t2
+// write c
 
-a = 10;
-b = a + 3.2;
-c = (a + b) * 2;
+num a = 5;
+num b = 2;
+num c;
+
+c = a + b * 3;
+write(c);

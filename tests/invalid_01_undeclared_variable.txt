@@ -1,3 +1,7 @@
+// Invalid test: undeclared variable usage.
+// Expected behavior: semantic errors for undeclared b.
+
 num a = 5;
-b = a + 3;
-write(c);
+
+b = a + 1;
+write(b);

@@ -1,3 +1,5 @@
-num a;
-real a;
-bigreal x, x;
+// Invalid test: duplicate declaration in the same scope.
+// Expected behavior: semantic error for redeclaring a.
+
+num a = 1;
+num a = 2;

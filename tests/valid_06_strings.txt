@@ -1,6 +1,14 @@
-text greeting = "hello";
-text target = "compiler lab";
+// Valid test: text values and string output.
+// Expected AST behavior: text declarations, assignment, and write statements.
+// Expected interpreter output:
+// compiler
+// lab
+// ok
 
-write(greeting);
-write(target);
-write("done");
+text message = "compiler";
+text label;
+
+label = "lab";
+write(message);
+write(label);
+write("ok");

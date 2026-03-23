@@ -1,5 +1,16 @@
+// Valid test: mixed full program.
+// Expected AST behavior: function definition, repeat-until, chk/else_try, and decide in one program.
+// Expected interpreter output:
+// small
+// 1
+// big
+// 4
+// big
+// 9
+// finished
+
 fx square(num x) {
-    stop x * x;
+    return x * x;
 }
 
 num i = 0;
@@ -9,7 +20,7 @@ repeat doing {
     i = i + 1;
     value = square(i);
 
-    chk (value > 4) then {
+    chk (value > 2) then {
         write("big");
     } else_try {
         write("small");
