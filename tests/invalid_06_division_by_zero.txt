@@ -1,0 +1,6 @@
+num a = 10;
+num b = 0;
+num c;
+
+c = a / b;
+write(c);

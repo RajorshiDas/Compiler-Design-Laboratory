@@ -1,0 +1,6 @@
+fx bad(num x) {
+    stop "hello";
+}
+
+num result;
+result = bad(3);

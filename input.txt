@@ -1,10 +1,10 @@
-num a;
-real b;
-bigreal c;
+fx add(num x, num y) {
+    stop x + y;
+}
 
-a = 5;
-b = a + 3.2;
-c = b + a;
+num a = 5;
+num b = 7;
+num c;
 
-write(a);
-read(b);
+c = add(a, b);
+write(c);

@@ -1,0 +1,5 @@
+num a;
+num b = 5;
+
+write(a);
+write(a + b);

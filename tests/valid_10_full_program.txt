@@ -1,0 +1,28 @@
+fx square(num x) {
+    stop x * x;
+}
+
+num i = 0;
+num value;
+
+repeat doing {
+    i = i + 1;
+    value = square(i);
+
+    chk (value > 4) then {
+        write("big");
+    } else_try {
+        write("small");
+    }
+
+    write(value);
+} until (i == 3);
+
+decide (i) {
+    when i == 3 then {
+        write("finished");
+    }
+    otherwise then {
+        write("unexpected");
+    }
+}

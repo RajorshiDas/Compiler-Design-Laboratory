@@ -1,0 +1,16 @@
+num a = 7;
+num b = 3;
+
+chk (a > b) then {
+    write("a is bigger");
+    write(a);
+} else_try {
+    write("b is bigger");
+    write(b);
+}
+
+chk (a == b) then {
+    write(100);
+} else_try {
+    write(200);
+}

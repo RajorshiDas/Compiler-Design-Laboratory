@@ -1,0 +1,10 @@
+num i = 0;
+num total = 0;
+
+repeat doing {
+    i = i + 1;
+    total = total + i;
+    write(i);
+} until (i == 4);
+
+write(total);

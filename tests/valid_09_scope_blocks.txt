@@ -1,0 +1,8 @@
+num x = 10;
+
+{
+    num x = 99;
+    write(x);
+}
+
+write(x);

@@ -1,0 +1,13 @@
+num choice = 2;
+
+decide (choice) {
+    when choice == 1 then {
+        write("one");
+    }
+    when choice == 2 then {
+        write("two");
+    }
+    otherwise then {
+        write("other");
+    }
+}

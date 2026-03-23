@@ -1,0 +1,6 @@
+fx add(num x, num y) {
+    stop x + y;
+}
+
+num result;
+result = add(5);

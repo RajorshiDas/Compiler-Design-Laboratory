@@ -1,0 +1,16 @@
+fx add(num x, num y) {
+    stop x + y;
+}
+
+fx mix(num a, real b) {
+    stop a + b;
+}
+
+num sum;
+real mixed;
+
+sum = add(4, 6);
+mixed = mix(3, 2.5);
+
+write(sum);
+write(mixed);

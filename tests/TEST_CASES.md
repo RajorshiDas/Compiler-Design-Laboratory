@@ -1,10 +1,19 @@
 # Compiler Project Test Cases
 
-This folder contains simple test programs for demonstrating:
+This folder now covers the interpreter features as well as parsing and semantic checking.
 
-- lexical analysis
-- syntax analysis
-- semantic analysis
+The suite includes:
+
+- declarations and assignments
+- arithmetic expressions
+- `read(...)` and `write(...)`
+- strings
+- `chk ... then ... else_try`
+- `repeat doing ... until`
+- `decide / when / otherwise`
+- block scope
+- function definitions, calls, and returns
+- semantic, syntax, lexical, and runtime error cases
 
 ## Valid Test Cases
 
@@ -14,22 +23,11 @@ Focus:
 - comma-separated declarations
 - initialized declarations
 
-Expected behavior:
-- parsing succeeds
-- symbol table contains all declared variables
-- no semantic errors
-
 ### `valid_02_assignments_expressions.txt`
 Focus:
-- assignments
-- arithmetic expressions
-- parentheses
+- arithmetic execution
+- assignment execution
 - implicit numeric conversion
-
-Expected behavior:
-- parsing succeeds
-- one semantic note may appear for implicit conversion such as `real -> bigreal`
-- no semantic errors
 
 ### `valid_03_read_write.txt`
 Focus:
@@ -38,72 +36,123 @@ Focus:
 - `write(expression);`
 - `write("string");`
 
-Expected behavior:
-- parsing succeeds
-- declared identifiers are accepted in `read`
-- expression types are computed for `write`
-- no semantic errors
+Note:
+- if no runtime input is provided, the sample still runs using the initial value of `a`
 
-## Invalid Test Cases
+### `valid_04_conditionals.txt`
+Focus:
+- `chk (...) then { ... } else_try { ... }`
+- relational evaluation
+- branch execution
+
+### `valid_05_loops.txt`
+Focus:
+- `repeat doing { ... } until (...)`
+- loop body execution
+- accumulating values across iterations
+
+### `valid_06_strings.txt`
+Focus:
+- text variable initialization
+- text variable output
+- direct string literal output
+
+### `valid_07_functions.txt`
+Focus:
+- `fx` function definitions
+- parameter passing
+- `stop expr;` return values
+- using function calls inside assignments
+
+### `valid_08_decide.txt`
+Focus:
+- `decide (...) { when ... otherwise ... }`
+- first matching `when` branch execution
+
+### `valid_09_scope_blocks.txt`
+Focus:
+- nested block scopes
+- shadowed variables
+
+### `valid_10_full_program.txt`
+Focus:
+- mixed execution in one file
+- functions + loops + conditionals + decide
+
+## Invalid / Error Test Cases
 
 ### `invalid_01_undeclared_variable.txt`
 Focus:
-- use of undeclared variables
-
-Expected behavior:
-- semantic errors for undeclared identifiers
+- use of undeclared identifiers
 
 ### `invalid_02_duplicate_declaration.txt`
 Focus:
-- duplicate declarations
-
-Expected behavior:
-- semantic error reporting duplicate declaration
+- duplicate declarations in the same scope
 
 ### `invalid_03_invalid_assignment.txt`
 Focus:
-- invalid type assignment
+- invalid assignment types
 - invalid arithmetic involving text
-
-Expected behavior:
-- semantic errors for type mismatch
-- semantic error for invalid arithmetic
 
 ### `invalid_04_syntax_error.txt`
 Focus:
-- missing operands
 - malformed statements
-
-Expected behavior:
-- syntax errors with line number
-- parser attempts recovery and continues when possible
+- parser recovery
 
 ### `invalid_05_invalid_token.txt`
 Focus:
-- invalid characters not recognized by the lexer
+- lexer rejection of invalid characters
 
-Expected behavior:
-- lexical error with line number and token text
-- parser may also report syntax errors after the invalid token
+### `invalid_06_division_by_zero.txt`
+Focus:
+- runtime division-by-zero detection
 
-## Suggested Run Commands
+### `invalid_07_uninitialized_variable.txt`
+Focus:
+- runtime use of uninitialized variables
 
-Build:
+### `invalid_08_wrong_function_arguments.txt`
+Focus:
+- semantic check for wrong function argument count
 
-```bash
+### `invalid_09_return_outside_function.txt`
+Focus:
+- semantic rejection of `stop expr;` outside a function
+
+### `invalid_10_function_type_mismatch.txt`
+Focus:
+- semantic rejection of assigning a function's returned text value to a numeric variable
+
+## Build Command
+
+```powershell
 bison -d -o parser.tab.c parser.y
 flex scanner.l
-gcc -Wall -Wextra -o parser.exe parser.tab.c lex.yy.c symtab.c main.c
+gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c interpreter.c main.c
 ```
 
-Run one test:
+## Run One Test
 
-```bash
-./parser.exe tests/valid_01_declarations.txt
+```powershell
+.\compiler.exe tests\valid_05_loops.txt
 ```
 
-Run another test:
+## Suggested Run Order
 
-```bash
-./parser.exe tests/invalid_03_invalid_assignment.txt
+1. `valid_01_declarations.txt`
+2. `valid_02_assignments_expressions.txt`
+3. `valid_04_conditionals.txt`
+4. `valid_05_loops.txt`
+5. `valid_06_strings.txt`
+6. `valid_07_functions.txt`
+7. `valid_08_decide.txt`
+8. `valid_10_full_program.txt`
+
+## Quick Batch Run
+
+```powershell
+Get-ChildItem tests\valid_*.txt | ForEach-Object {
+    Write-Host "`n=== $($_.Name) ==="
+    .\compiler.exe $_.FullName
+}
 ```
