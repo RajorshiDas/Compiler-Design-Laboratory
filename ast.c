@@ -91,7 +91,7 @@ ExprNode *create_unary_expr(const char *op, ExprNode *operand, SymbolType value_
     return expr;
 }
 
-ExprNode *create_function_call_expr(char *name, ExprList *arguments, SymbolType value_type) {
+ExprNode *create_function_call_expr(char *name, ArgumentList *arguments, SymbolType value_type) {
     ExprNode *expr = allocate_expr(value_type, EXPR_FUNCTION_CALL);
 
     if (expr != NULL) {
@@ -100,6 +100,14 @@ ExprNode *create_function_call_expr(char *name, ExprList *arguments, SymbolType 
     }
 
     return expr;
+}
+
+ArgumentList *create_argument_list(ExprNode *expr) {
+    return create_expr_list(expr);
+}
+
+ArgumentList *append_argument_list(ArgumentList *list, ArgumentList *item) {
+    return append_expr_list(list, item);
 }
 
 ExprList *create_expr_list(ExprNode *expr) {
@@ -132,6 +140,18 @@ ExprList *append_expr_list(ExprList *list, ExprList *item) {
 
     tail->next = item;
     return list;
+}
+
+ParameterList *create_parameter_node(SymbolType type, char *name) {
+    return create_param_node(type, name);
+}
+
+ParameterList *append_parameter_list(ParameterList *list, ParameterList *item) {
+    return append_param_list(list, item);
+}
+
+int parameter_count(const ParameterList *params) {
+    return param_count(params);
 }
 
 ParamNode *create_param_node(SymbolType type, char *name) {
@@ -299,6 +319,10 @@ StmtNode *create_decide_stmt(ExprNode *selector, CaseNode *cases, StmtNode *othe
     return stmt;
 }
 
+StmtNode *create_function_decl_stmt(char *name, ParameterList *parameters, StmtNode *body, SymbolType return_type) {
+    return create_function_def_stmt(name, parameters, body, return_type);
+}
+
 StmtNode *create_function_def_stmt(char *name, ParamNode *parameters, StmtNode *body, SymbolType return_type) {
     StmtNode *stmt = allocate_stmt(STMT_FUNCTION_DEF);
 
@@ -391,6 +415,10 @@ void free_expr(ExprNode *expr) {
     free(expr);
 }
 
+void free_argument_list(ArgumentList *list) {
+    free_expr_list(list);
+}
+
 void free_expr_list(ExprList *list) {
     ExprList *next;
 
@@ -411,6 +439,10 @@ void free_param_list(ParamNode *params) {
         free(params);
         params = next;
     }
+}
+
+void free_parameter_list(ParameterList *params) {
+    free_param_list(params);
 }
 
 void free_case_list(CaseNode *cases) {

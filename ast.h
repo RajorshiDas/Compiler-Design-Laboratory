@@ -23,6 +23,7 @@ typedef enum StmtKind {
     STMT_REPEAT,
     STMT_DECIDE,
     STMT_FUNCTION_DEF,
+    STMT_FUNCTION_DECL = STMT_FUNCTION_DEF,
     STMT_SKIP,
     STMT_STOP,
     STMT_RETURN
@@ -34,6 +35,9 @@ typedef struct ParamNode ParamNode;
 typedef struct CaseNode CaseNode;
 typedef struct StmtNode StmtNode;
 typedef struct Program Program;
+
+typedef ExprList ArgumentList;
+typedef ParamNode ParameterList;
 
 struct ExprList {
     ExprNode *expr;
@@ -71,7 +75,7 @@ struct ExprNode {
         } unary;
         struct {
             char *name;
-            ExprList *arguments;
+            ArgumentList *arguments;
         } call;
     } data;
 };
@@ -114,7 +118,7 @@ struct StmtNode {
         } decide_stmt;
         struct {
             char *name;
-            ParamNode *parameters;
+            ParameterList *parameters;
             StmtNode *body;
             SymbolType return_type;
         } function_def;
@@ -134,11 +138,16 @@ ExprNode *create_string_literal_expr(char *value);
 ExprNode *create_variable_expr(char *name, SymbolType value_type);
 ExprNode *create_binary_expr(const char *op, ExprNode *left, ExprNode *right, SymbolType value_type);
 ExprNode *create_unary_expr(const char *op, ExprNode *operand, SymbolType value_type);
-ExprNode *create_function_call_expr(char *name, ExprList *arguments, SymbolType value_type);
+ExprNode *create_function_call_expr(char *name, ArgumentList *arguments, SymbolType value_type);
 
+ArgumentList *create_argument_list(ExprNode *expr);
+ArgumentList *append_argument_list(ArgumentList *list, ArgumentList *item);
 ExprList *create_expr_list(ExprNode *expr);
 ExprList *append_expr_list(ExprList *list, ExprList *item);
 
+ParameterList *create_parameter_node(SymbolType type, char *name);
+ParameterList *append_parameter_list(ParameterList *list, ParameterList *item);
+int parameter_count(const ParameterList *params);
 ParamNode *create_param_node(SymbolType type, char *name);
 ParamNode *append_param_list(ParamNode *list, ParamNode *item);
 int param_count(const ParamNode *params);
@@ -154,16 +163,19 @@ StmtNode *create_block_stmt(StmtNode *statements);
 StmtNode *create_chk_stmt(ExprNode *condition, StmtNode *then_branch, StmtNode *else_branch);
 StmtNode *create_repeat_stmt(StmtNode *body, ExprNode *condition);
 StmtNode *create_decide_stmt(ExprNode *selector, CaseNode *cases, StmtNode *otherwise_branch);
+StmtNode *create_function_decl_stmt(char *name, ParameterList *parameters, StmtNode *body, SymbolType return_type);
 StmtNode *create_function_def_stmt(char *name, ParamNode *parameters, StmtNode *body, SymbolType return_type);
+StmtNode *create_return_stmt(ExprNode *value);
 StmtNode *create_skip_stmt(void);
 StmtNode *create_stop_stmt(void);
-StmtNode *create_return_stmt(ExprNode *value);
 StmtNode *append_statement(StmtNode *list, StmtNode *item);
 
 Program *create_program(StmtNode *statements);
 
 void free_expr(ExprNode *expr);
+void free_argument_list(ArgumentList *list);
 void free_expr_list(ExprList *list);
+void free_parameter_list(ParameterList *params);
 void free_param_list(ParamNode *params);
 void free_case_list(CaseNode *cases);
 void free_statement_list(StmtNode *stmt);

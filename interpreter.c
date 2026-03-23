@@ -4,8 +4,24 @@
 #include "interpreter.h"
 #include "symtab.h"
 
+typedef struct FunctionEntry {
+    const StmtNode *definition;
+    struct FunctionEntry *next;
+} FunctionEntry;
+
 static int runtime_error_count = 0;
 static int stop_requested = 0;
+static int return_requested = 0;
+static int function_call_depth = 0;
+static ExprResult return_value = { TYPE_INVALID, 0, {0} };
+static FunctionEntry *function_table = NULL;
+
+static ExprResult copy_expr_result(const ExprResult *value);
+static void collect_functions(const StmtNode *node);
+static const StmtNode *find_function(const char *name);
+static int count_arguments(const ArgumentList *arguments);
+static void free_function_table(void);
+static ExprResult execute_function_call(ExprNode *node);
 
 static void report_runtime_error(const char *message) {
     fprintf(stderr, "Runtime error: %s\n", message);
@@ -82,6 +98,43 @@ static ExprResult make_text_result(const char *value) {
     result.type = TYPE_TEXT;
     result.has_value = 1;
     result.data.text_value = copy_text(value);
+    return result;
+}
+
+static ExprResult copy_expr_result(const ExprResult *value) {
+    ExprResult result = make_invalid_result();
+
+    if (value == NULL || !value->has_value) {
+        return result;
+    }
+
+    result.type = value->type;
+    result.has_value = 1;
+
+    switch (value->type) {
+        case TYPE_NUM:
+            result.data.num_value = value->data.num_value;
+            break;
+        case TYPE_REAL:
+            result.data.real_value = value->data.real_value;
+            break;
+        case TYPE_BIGREAL:
+            result.data.bigreal_value = value->data.bigreal_value;
+            break;
+        case TYPE_CHAR:
+            result.data.chr_value = value->data.chr_value;
+            break;
+        case TYPE_LOGIC:
+            result.data.logic_value = value->data.logic_value;
+            break;
+        case TYPE_TEXT:
+            result.data.text_value = copy_text(value->data.text_value);
+            break;
+        default:
+            result.has_value = 0;
+            break;
+    }
+
     return result;
 }
 
@@ -308,6 +361,154 @@ static ExprResult evaluate_binary_expression(ExprNode *node) {
 
 static int execute_statement_list(StmtNode *node);
 
+static void collect_functions(const StmtNode *node) {
+    while (node != NULL) {
+        if (node->kind == STMT_FUNCTION_DEF) {
+            FunctionEntry *entry = (FunctionEntry *)malloc(sizeof(FunctionEntry));
+
+            if (entry != NULL) {
+                entry->definition = node;
+                entry->next = function_table;
+                function_table = entry;
+            }
+            collect_functions(node->data.function_def.body);
+        } else if (node->kind == STMT_BLOCK) {
+            collect_functions(node->data.block.statements);
+        } else if (node->kind == STMT_CHK) {
+            collect_functions(node->data.chk_stmt.then_branch);
+            collect_functions(node->data.chk_stmt.else_branch);
+        } else if (node->kind == STMT_REPEAT) {
+            collect_functions(node->data.repeat_stmt.body);
+        } else if (node->kind == STMT_DECIDE) {
+            const CaseNode *case_node = node->data.decide_stmt.cases;
+
+            while (case_node != NULL) {
+                collect_functions(case_node->body);
+                case_node = case_node->next;
+            }
+
+            collect_functions(node->data.decide_stmt.otherwise_branch);
+        }
+
+        node = node->next;
+    }
+}
+
+static const StmtNode *find_function(const char *name) {
+    FunctionEntry *entry = function_table;
+
+    while (entry != NULL) {
+        if (strcmp(entry->definition->data.function_def.name, name) == 0) {
+            return entry->definition;
+        }
+        entry = entry->next;
+    }
+
+    return NULL;
+}
+
+static int count_arguments(const ArgumentList *arguments) {
+    int count = 0;
+
+    while (arguments != NULL) {
+        ++count;
+        arguments = arguments->next;
+    }
+
+    return count;
+}
+
+static void free_function_table(void) {
+    FunctionEntry *entry = function_table;
+
+    while (entry != NULL) {
+        FunctionEntry *next = entry->next;
+        free(entry);
+        entry = next;
+    }
+
+    function_table = NULL;
+}
+
+static ExprResult execute_function_call(ExprNode *node) {
+    const StmtNode *function_node;
+    const ParameterList *parameter;
+    const ArgumentList *argument;
+    ExprResult result = make_invalid_result();
+    ExprResult saved_return_value = copy_expr_result(&return_value);
+    int saved_return_requested = return_requested;
+    int scope_open = 0;
+    int call_started = 0;
+
+    function_node = find_function(node->data.call.name);
+    if (function_node == NULL) {
+        report_runtime_error("call to undefined function.");
+        free_expr_result(&saved_return_value);
+        return result;
+    }
+
+    if (parameter_count(function_node->data.function_def.parameters) !=
+        count_arguments(node->data.call.arguments)) {
+        report_runtime_error("wrong number of arguments in function call.");
+        free_expr_result(&saved_return_value);
+        return result;
+    }
+
+    enter_scope();
+    scope_open = 1;
+
+    parameter = function_node->data.function_def.parameters;
+    argument = node->data.call.arguments;
+
+    while (parameter != NULL && argument != NULL) {
+        ExprResult argument_value = evaluate_expression(argument->expr);
+
+        if (!argument_value.has_value) {
+            free_expr_result(&argument_value);
+            goto cleanup;
+        }
+
+        if (!insert_symbol(parameter->name, parameter->type) ||
+            !set_symbol_value(parameter->name, &argument_value)) {
+            report_runtime_error("failed to bind function parameter.");
+            free_expr_result(&argument_value);
+            goto cleanup;
+        }
+
+        free_expr_result(&argument_value);
+        parameter = parameter->next;
+        argument = argument->next;
+    }
+
+    function_call_depth++;
+    call_started = 1;
+    free_expr_result(&return_value);
+    return_value = make_invalid_result();
+    return_requested = 0;
+
+    execute_statement((StmtNode *)function_node->data.function_def.body);
+
+    if (return_requested) {
+        result = copy_expr_result(&return_value);
+    } else {
+        report_runtime_error("function did not return a value.");
+    }
+
+cleanup:
+    if (call_started) {
+        --function_call_depth;
+    }
+
+    if (scope_open) {
+        leave_scope();
+    }
+
+    free_expr_result(&return_value);
+    return_value = saved_return_value;
+    return_requested = saved_return_requested;
+    return result;
+}
+
 ExprResult evaluate_expression(ExprNode *node) {
     RuntimeValue value;
     ExprResult result = make_invalid_result();
@@ -383,8 +584,7 @@ ExprResult evaluate_expression(ExprNode *node) {
             free_expr_result(&result);
             return make_invalid_result();
         case EXPR_FUNCTION_CALL:
-            report_runtime_error("function calls are not supported by this interpreter.");
-            return result;
+            return execute_function_call(node);
         default:
             report_runtime_error("unknown expression kind.");
             return result;
@@ -521,7 +721,7 @@ static void execute_repeat_statement(StmtNode *node) {
 static void execute_block_statement(StmtNode *node) {
     enter_scope();
     execute_statement_list(node->data.block.statements);
-    exit_scope();
+    leave_scope();
 }
 
 static void execute_decide_statement(StmtNode *node) {
@@ -559,7 +759,7 @@ static void execute_decide_statement(StmtNode *node) {
 static int execute_statement_list(StmtNode *node) {
     int errors_before = runtime_error_count;
 
-    while (node != NULL && !stop_requested) {
+    while (node != NULL && !stop_requested && !return_requested) {
         switch (node->kind) {
             case STMT_DECLARATION:
                 execute_declaration(node);
@@ -591,9 +791,25 @@ static int execute_statement_list(StmtNode *node) {
             case STMT_STOP:
                 stop_requested = 1;
                 break;
-            case STMT_RETURN:
-                report_runtime_error("return statements are not supported in this interpreter.");
+            case STMT_RETURN: {
+                ExprResult value;
+
+                if (function_call_depth == 0) {
+                    report_runtime_error("return statement used outside a function.");
+                    break;
+                }
+
+                value = evaluate_expression(node->data.return_stmt.value);
+                if (!value.has_value) {
+                    free_expr_result(&value);
+                    break;
+                }
+
+                free_expr_result(&return_value);
+                return_value = value;
+                return_requested = 1;
                 break;
+            }
             default:
                 report_runtime_error("unknown statement kind.");
                 break;
@@ -612,13 +828,22 @@ int execute_statement(StmtNode *node) {
 int interpret_program(const Program *program) {
     runtime_error_count = 0;
     stop_requested = 0;
+    return_requested = 0;
+    function_call_depth = 0;
     clear_symbol_table();
+    free_function_table();
+    free_expr_result(&return_value);
+    return_value = make_invalid_result();
 
     if (program == NULL) {
         report_runtime_error("program root is null.");
         return runtime_error_count;
     }
 
+    collect_functions(program->statements);
     execute_statement_list(program->statements);
+    free_function_table();
+    free_expr_result(&return_value);
+    return_value = make_invalid_result();
     return runtime_error_count;
 }
