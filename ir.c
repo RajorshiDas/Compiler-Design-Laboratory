@@ -7,6 +7,12 @@
 
 static int temp_counter = 0;
 static int label_counter = 0;
+static char *loop_continue_labels[64];
+static char *loop_break_labels[64];
+static int loop_stack_top = 0;
+
+static IRList *generate_function_definition_ir(const StmtNode *stmt);
+static IRList *generate_nested_function_ir(const StmtNode *stmt);
 
 static char *copy_text(const char *text) {
     size_t length;
@@ -186,6 +192,116 @@ char *new_label(void) {
     ++label_counter;
     snprintf(buffer, sizeof(buffer), "L%d", label_counter);
     return copy_text(buffer);
+}
+
+static void push_loop_labels(char *continue_label, char *break_label) {
+    if (loop_stack_top >= 64) {
+        return;
+    }
+
+    loop_continue_labels[loop_stack_top] = continue_label;
+    loop_break_labels[loop_stack_top] = break_label;
+    ++loop_stack_top;
+}
+
+static void pop_loop_labels(void) {
+    if (loop_stack_top > 0) {
+        --loop_stack_top;
+    }
+}
+
+static char *current_loop_continue_label(void) {
+    if (loop_stack_top <= 0) {
+        return NULL;
+    }
+
+    return loop_continue_labels[loop_stack_top - 1];
+}
+
+static char *current_loop_break_label(void) {
+    if (loop_stack_top <= 0) {
+        return NULL;
+    }
+
+    return loop_break_labels[loop_stack_top - 1];
+}
+
+static IRList *generate_function_definition_ir(const StmtNode *stmt) {
+    IRList *code = NULL;
+
+    if (stmt == NULL || stmt->kind != STMT_FUNCTION_DEF) {
+        return NULL;
+    }
+
+    code = append_code(
+        code,
+        create_ir_list(create_ir_instruction(IR_FUNCTION_BEGIN,
+                                             NULL,
+                                             NULL,
+                                             NULL,
+                                             stmt->data.function_def.name)));
+    code = append_code(code, generate_statement_ir(stmt->data.function_def.body));
+    code = append_code(
+        code,
+        create_ir_list(create_ir_instruction(IR_FUNCTION_END,
+                                             NULL,
+                                             NULL,
+                                             NULL,
+                                             stmt->data.function_def.name)));
+    return code;
+}
+
+static IRList *generate_nested_function_ir(const StmtNode *stmt) {
+    IRList *code = NULL;
+
+    while (stmt != NULL) {
+        switch (stmt->kind) {
+            case STMT_FUNCTION_DEF:
+                code = append_code(code, generate_function_definition_ir(stmt));
+                code = append_code(code, generate_nested_function_ir(stmt->data.function_def.body));
+                break;
+
+            case STMT_BLOCK:
+                code = append_code(code, generate_nested_function_ir(stmt->data.block.statements));
+                break;
+
+            case STMT_CHK:
+                code = append_code(code, generate_nested_function_ir(stmt->data.chk_stmt.then_branch));
+                code = append_code(code, generate_nested_function_ir(stmt->data.chk_stmt.else_branch));
+                break;
+
+            case STMT_REPEAT:
+                code = append_code(code, generate_nested_function_ir(stmt->data.repeat_stmt.body));
+                break;
+
+            case STMT_UNTIL:
+                code = append_code(code, generate_nested_function_ir(stmt->data.until_stmt.body));
+                break;
+
+            case STMT_DOING:
+                code = append_code(code, generate_nested_function_ir(stmt->data.doing_stmt.body));
+                break;
+
+            case STMT_DECIDE: {
+                const CaseNode *case_node = stmt->data.decide_stmt.cases;
+
+                while (case_node != NULL) {
+                    code = append_code(code, generate_nested_function_ir(case_node->body));
+                    case_node = case_node->next;
+                }
+
+                code = append_code(code, generate_nested_function_ir(stmt->data.decide_stmt.otherwise_branch));
+                break;
+            }
+
+            default:
+                break;
+        }
+
+        stmt = stmt->next;
+    }
+
+    return code;
 }
 
 char *generate_expression_ir(ExprNode *expr, IRList **code) {
@@ -439,7 +555,8 @@ IRList *generate_statement_ir(StmtNode *stmt) {
             }
 
             case STMT_REPEAT: {
-                char *start_label = new_label();
+                char *condition_label = new_label();
+                char *update_label = new_label();
                 char *end_label = new_label();
                 char *condition_value;
                 char *update_value;
@@ -450,9 +567,28 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          NULL,
                                                          NULL,
-                                                         start_label)));
-                code = append_code(code, generate_statement_ir(stmt->data.repeat_stmt.body));
+                                                         condition_label)));
+                condition_value = generate_expression_ir(stmt->data.repeat_stmt.condition, &code);
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_IF_FALSE_GOTO,
+                                                         NULL,
+                                                         condition_value,
+                                                         NULL,
+                                                         end_label)));
+                free(condition_value);
 
+                push_loop_labels(update_label, end_label);
+                code = append_code(code, generate_statement_ir(stmt->data.repeat_stmt.body));
+                pop_loop_labels();
+
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         update_label)));
                 update_value = generate_expression_ir(stmt->data.repeat_stmt.update, &code);
                 code = append_code(
                     code,
@@ -462,22 +598,13 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          NULL)));
                 free(update_value);
-
-                condition_value = generate_expression_ir(stmt->data.repeat_stmt.condition, &code);
-                code = append_code(
-                    code,
-                    create_ir_list(create_ir_instruction(IR_IF_FALSE_GOTO,
-                                                         NULL,
-                                                         condition_value,
-                                                         NULL,
-                                                         end_label)));
                 code = append_code(
                     code,
                     create_ir_list(create_ir_instruction(IR_GOTO,
                                                          NULL,
                                                          NULL,
                                                          NULL,
-                                                         start_label)));
+                                                         condition_label)));
                 code = append_code(
                     code,
                     create_ir_list(create_ir_instruction(IR_LABEL,
@@ -486,14 +613,16 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          end_label)));
 
-                free(condition_value);
-                free(start_label);
+                free(condition_label);
+                free(update_label);
                 free(end_label);
                 break;
             }
 
             case STMT_UNTIL: {
-                char *start_label = new_label();
+                char *condition_label = new_label();
+                char *body_label = new_label();
+                char *end_label = new_label();
                 char *condition_value;
 
                 code = append_code(
@@ -502,8 +631,7 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          NULL,
                                                          NULL,
-                                                         start_label)));
-                code = append_code(code, generate_statement_ir(stmt->data.until_stmt.body));
+                                                         condition_label)));
                 condition_value = generate_expression_ir(stmt->data.until_stmt.condition, &code);
                 code = append_code(
                     code,
@@ -511,14 +639,52 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          condition_value,
                                                          NULL,
-                                                         start_label)));
+                                                         body_label)));
                 free(condition_value);
-                free(start_label);
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_GOTO,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         end_label)));
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         body_label)));
+
+                push_loop_labels(condition_label, end_label);
+                code = append_code(code, generate_statement_ir(stmt->data.until_stmt.body));
+                pop_loop_labels();
+
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_GOTO,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         condition_label)));
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         end_label)));
+
+                free(condition_label);
+                free(body_label);
+                free(end_label);
                 break;
             }
 
             case STMT_DOING: {
-                char *start_label = new_label();
+                char *body_label = new_label();
+                char *condition_label = new_label();
+                char *end_label = new_label();
                 char *condition_value;
 
                 code = append_code(
@@ -527,8 +693,19 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          NULL,
                                                          NULL,
-                                                         start_label)));
+                                                         body_label)));
+
+                push_loop_labels(condition_label, end_label);
                 code = append_code(code, generate_statement_ir(stmt->data.doing_stmt.body));
+                pop_loop_labels();
+
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         condition_label)));
                 condition_value = generate_expression_ir(stmt->data.doing_stmt.condition, &code);
                 code = append_code(
                     code,
@@ -536,16 +713,54 @@ IRList *generate_statement_ir(StmtNode *stmt) {
                                                          NULL,
                                                          condition_value,
                                                          NULL,
-                                                         start_label)));
+                                                         body_label)));
                 free(condition_value);
-                free(start_label);
+                code = append_code(
+                    code,
+                    create_ir_list(create_ir_instruction(IR_LABEL,
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         end_label)));
+
+                free(body_label);
+                free(condition_label);
+                free(end_label);
                 break;
             }
 
             case STMT_FUNCTION_DEF:
-            case STMT_SKIP:
-            case STMT_STOP:
                 break;
+
+            case STMT_SKIP: {
+                char *continue_label = current_loop_continue_label();
+
+                if (continue_label != NULL) {
+                    code = append_code(
+                        code,
+                        create_ir_list(create_ir_instruction(IR_GOTO,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             continue_label)));
+                }
+                break;
+            }
+
+            case STMT_STOP: {
+                char *break_label = current_loop_break_label();
+
+                if (break_label != NULL) {
+                    code = append_code(
+                        code,
+                        create_ir_list(create_ir_instruction(IR_GOTO,
+                                                             NULL,
+                                                             NULL,
+                                                             NULL,
+                                                             break_label)));
+                }
+                break;
+            }
 
             case STMT_DECIDE: {
                 CaseNode *case_node = stmt->data.decide_stmt.cases;
@@ -634,11 +849,33 @@ IRList *generate_statement_ir(StmtNode *stmt) {
 }
 
 IRList *generate_program_ir(Program *program) {
+    IRList *code = NULL;
+
     if (program == NULL) {
         return NULL;
     }
 
-    return generate_statement_ir(program->statements);
+    temp_counter = 0;
+    label_counter = 0;
+    loop_stack_top = 0;
+
+    code = append_code(code, generate_nested_function_ir(program->statements));
+    code = append_code(
+        code,
+        create_ir_list(create_ir_instruction(IR_FUNCTION_BEGIN,
+                                             NULL,
+                                             NULL,
+                                             NULL,
+                                             "start")));
+    code = append_code(code, generate_statement_ir(program->statements));
+    code = append_code(
+        code,
+        create_ir_list(create_ir_instruction(IR_FUNCTION_END,
+                                             NULL,
+                                             NULL,
+                                             NULL,
+                                             "start")));
+    return code;
 }
 
 IRList *generate_ir(Program *root) {
@@ -655,6 +892,14 @@ void print_ir(const IRList *list) {
         }
 
         switch (instruction->op) {
+            case IR_FUNCTION_BEGIN:
+                printf("\nfunction %s:\n", instruction->label);
+                break;
+
+            case IR_FUNCTION_END:
+                printf("end function %s\n", instruction->label);
+                break;
+
             case IR_LABEL:
                 printf("%s:\n", instruction->label);
                 break;
@@ -774,3 +1019,5 @@ void free_ir_list(IRList *list) {
         list = next;
     }
 }
+
+

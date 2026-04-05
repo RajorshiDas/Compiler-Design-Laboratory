@@ -22,7 +22,52 @@ static void print_indent(int level) {
 }
 
 static void print_expression(const ExprNode *expr, int indent);
+static void print_statement_list(const StmtNode *stmt, int indent);
+
+static void print_parameter_list(const ParamNode *param, int indent) {
+    if (param == NULL) {
+        print_indent(indent);
+        printf("(none)\n");
+        return;
+    }
+
+    while (param != NULL) {
+        print_indent(indent);
+        printf("%s (%s)\n", param->name, symbol_type_name(param->type));
+        param = param->next;
+    }
+}
+
+static void print_case_list(const CaseNode *cases, int indent) {
+    int case_index = 1;
+
+    if (cases == NULL) {
+        print_indent(indent);
+        printf("(none)\n");
+        return;
+    }
+
+    while (cases != NULL) {
+        print_indent(indent);
+        printf("Case %d:\n", case_index);
+        print_indent(indent + 1);
+        printf("Match:\n");
+        print_expression(cases->condition, indent + 2);
+        print_indent(indent + 1);
+        printf("Body:\n");
+        print_statement_list(cases->body, indent + 2);
+        cases = cases->next;
+        ++case_index;
+    }
+}
+
 static void print_expression_list(const ExprList *list, int indent) {
+    if (list == NULL) {
+        print_indent(indent);
+        printf("(none)\n");
+        return;
+    }
+
     while (list != NULL) {
         print_expression(list->expr, indent);
         list = list->next;
@@ -30,6 +75,12 @@ static void print_expression_list(const ExprList *list, int indent) {
 }
 
 static void print_statement_list(const StmtNode *stmt, int indent) {
+    if (stmt == NULL) {
+        print_indent(indent);
+        printf("(empty)\n");
+        return;
+    }
+
     while (stmt != NULL) {
         switch (stmt->kind) {
             case STMT_DECLARATION:
@@ -47,12 +98,16 @@ static void print_statement_list(const StmtNode *stmt, int indent) {
             case STMT_ASSIGNMENT:
                 print_indent(indent);
                 printf("Assignment: %s\n", stmt->data.assignment.name);
-                print_expression(stmt->data.assignment.value, indent + 1);
+                print_indent(indent + 1);
+                printf("Value:\n");
+                print_expression(stmt->data.assignment.value, indent + 2);
                 break;
 
             case STMT_READ:
                 print_indent(indent);
-                printf("Read: %s\n", stmt->data.read_stmt.name);
+                printf("Read: %s (%s)\n",
+                       stmt->data.read_stmt.name,
+                       symbol_type_name(stmt->data.read_stmt.declared_type));
                 break;
 
             case STMT_WRITE:
@@ -123,12 +178,31 @@ static void print_statement_list(const StmtNode *stmt, int indent) {
 
             case STMT_DECIDE:
                 print_indent(indent);
-                printf("Decide\n");
+                printf("Decide:\n");
+                print_indent(indent + 1);
+                printf("Selector:\n");
+                print_expression(stmt->data.decide_stmt.selector, indent + 2);
+                print_indent(indent + 1);
+                printf("Cases:\n");
+                print_case_list(stmt->data.decide_stmt.cases, indent + 2);
+                if (stmt->data.decide_stmt.otherwise_branch != NULL) {
+                    print_indent(indent + 1);
+                    printf("Otherwise:\n");
+                    print_statement_list(stmt->data.decide_stmt.otherwise_branch, indent + 2);
+                }
                 break;
 
             case STMT_FUNCTION_DEF:
                 print_indent(indent);
-                printf("Function: %s\n", stmt->data.function_def.name);
+                printf("Function: %s -> %s\n",
+                       stmt->data.function_def.name,
+                       symbol_type_name(stmt->data.function_def.return_type));
+                print_indent(indent + 1);
+                printf("Parameters:\n");
+                print_parameter_list(stmt->data.function_def.parameters, indent + 2);
+                print_indent(indent + 1);
+                printf("Body:\n");
+                print_statement_list(stmt->data.function_def.body, indent + 2);
                 break;
 
             case STMT_SKIP:
@@ -198,19 +272,28 @@ static void print_expression(const ExprNode *expr, int indent) {
         case EXPR_BINARY:
             print_indent(indent);
             printf("BinaryExpr: %s\n", expr->data.binary.op);
-            print_expression(expr->data.binary.left, indent + 1);
-            print_expression(expr->data.binary.right, indent + 1);
+            print_indent(indent + 1);
+            printf("Left:\n");
+            print_expression(expr->data.binary.left, indent + 2);
+            print_indent(indent + 1);
+            printf("Right:\n");
+            print_expression(expr->data.binary.right, indent + 2);
             break;
 
         case EXPR_UNARY:
             print_indent(indent);
             printf("UnaryExpr: %s\n", expr->data.unary.op);
-            print_expression(expr->data.unary.operand, indent + 1);
+            print_indent(indent + 1);
+            printf("Operand:\n");
+            print_expression(expr->data.unary.operand, indent + 2);
             break;
 
         case EXPR_FUNCTION_CALL:
             print_indent(indent);
             printf("FunctionCall: %s\n", expr->data.call.name);
+            print_indent(indent + 1);
+            printf("Arguments:\n");
+            print_expression_list(expr->data.call.arguments, indent + 2);
             break;
 
         default:

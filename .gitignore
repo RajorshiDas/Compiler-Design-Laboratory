@@ -1,0 +1,14 @@
+*.o
+*.obj
+*.exe
+
+lex.yy.c
+lex.yy.o
+parser.tab.c
+parser.tab.h
+generated.c
+
+temp_*
+output.txtcd
+
+output tests/

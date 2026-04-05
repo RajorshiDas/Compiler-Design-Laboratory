@@ -83,6 +83,63 @@ static const char *c_function_name(const char *name) {
     return name;
 }
 
+static void emit_function_signature(const StmtNode *stmt, FILE *out) {
+    ParameterList *parameter;
+    int first;
+
+    if (stmt == NULL || stmt->kind != STMT_FUNCTION_DEF) {
+        return;
+    }
+
+    parameter = stmt->data.function_def.parameters;
+    first = 1;
+
+    fprintf(out, "%s %s(",
+            c_type_name(stmt->data.function_def.return_type),
+            stmt->data.function_def.name);
+    while (parameter != NULL) {
+        if (!first) {
+            fputs(", ", out);
+        }
+        fprintf(out, "%s %s", c_type_name(parameter->type), parameter->name);
+        first = 0;
+        parameter = parameter->next;
+    }
+    fputs(")", out);
+}
+
+static void emit_function_prototypes(const StmtNode *stmt, FILE *out) {
+    while (stmt != NULL) {
+        if (stmt->kind == STMT_FUNCTION_DEF) {
+            emit_function_signature(stmt, out);
+            fputs(";\n", out);
+            emit_function_prototypes(stmt->data.function_def.body, out);
+        } else if (stmt->kind == STMT_BLOCK) {
+            emit_function_prototypes(stmt->data.block.statements, out);
+        } else if (stmt->kind == STMT_CHK) {
+            emit_function_prototypes(stmt->data.chk_stmt.then_branch, out);
+            emit_function_prototypes(stmt->data.chk_stmt.else_branch, out);
+        } else if (stmt->kind == STMT_REPEAT) {
+            emit_function_prototypes(stmt->data.repeat_stmt.body, out);
+        } else if (stmt->kind == STMT_UNTIL) {
+            emit_function_prototypes(stmt->data.until_stmt.body, out);
+        } else if (stmt->kind == STMT_DOING) {
+            emit_function_prototypes(stmt->data.doing_stmt.body, out);
+        } else if (stmt->kind == STMT_DECIDE) {
+            CaseNode *case_node = stmt->data.decide_stmt.cases;
+
+            while (case_node != NULL) {
+                emit_function_prototypes(case_node->body, out);
+                case_node = case_node->next;
+            }
+
+            emit_function_prototypes(stmt->data.decide_stmt.otherwise_branch, out);
+        }
+
+        stmt = stmt->next;
+    }
+}
+
 static void generate_statement_node_c(StmtNode *stmt, FILE *out, int indent_level);
 
 static void generate_write_c(ExprList *values, FILE *out, int indent_level) {
@@ -239,8 +296,6 @@ void generate_expression_c(ExprNode *expr, FILE *out) {
 }
 
 static void generate_statement_node_c(StmtNode *stmt, FILE *out, int indent_level) {
-    ParameterList *parameter;
-    int first;
 
     if (stmt == NULL) {
         return;
@@ -327,21 +382,9 @@ static void generate_statement_node_c(StmtNode *stmt, FILE *out, int indent_leve
             break;
 
         case STMT_FUNCTION_DEF:
-            parameter = stmt->data.function_def.parameters;
-            first = 1;
-
             print_indent(out, indent_level);
-            fprintf(out, "%s %s(", c_type_name(stmt->data.function_def.return_type),
-                    stmt->data.function_def.name);
-            while (parameter != NULL) {
-                if (!first) {
-                    fputs(", ", out);
-                }
-                fprintf(out, "%s %s", c_type_name(parameter->type), parameter->name);
-                first = 0;
-                parameter = parameter->next;
-            }
-            fputs(")\n", out);
+            emit_function_signature(stmt, out);
+            fputs("\n", out);
             emit_statement_body(stmt->data.function_def.body, out, indent_level);
             break;
 
@@ -416,6 +459,8 @@ void generate_program_c(Program *program, FILE *out) {
     fputs("#include <stdio.h>\n", out);
     fputs("#include <math.h>\n\n", out);
 
+    emit_function_prototypes(program->statements, out);
+    fputs("\n", out);
     emit_function_definitions(program->statements, out);
 
     fputs("int main(void)\n", out);
@@ -429,3 +474,7 @@ void generate_program_c(Program *program, FILE *out) {
 void generate_c_code(Program *program, FILE *out) {
     generate_program_c(program, out);
 }
+
+
+
+

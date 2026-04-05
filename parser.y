@@ -47,6 +47,7 @@ static int declare_identifier(const char *name, SymbolType type);
 static int validate_assignment(const char *name, SymbolType value_type);
 static void validate_logic_expression(SymbolType type, const char *context);
 static FunctionSignature *find_function_signature(const char *name);
+static void register_function_signature(const char *name, ParamNode *parameters, SymbolType return_type);
 static SymbolType infer_function_call_type(const char *name, ExprList *arguments);
 static void begin_function_definition(char *name, ParamNode *parameters, SymbolType declared_return_type);
 static SymbolType finish_function_definition(ParamNode *parameters);
@@ -860,6 +861,42 @@ static FunctionSignature *find_function_signature(const char *name) {
     return NULL;
 }
 
+static void register_function_signature(const char *name, ParamNode *parameters, SymbolType return_type) {
+    FunctionSignature *signature;
+    ParamNode *current = parameters;
+    int index = 0;
+
+    if (find_function_signature(name) != NULL) {
+        fprintf(stderr,
+                "Semantic error at line %d: function '%s' is already defined.\n",
+                yylineno,
+                name);
+        semantic_errors++;
+        return;
+    }
+
+    signature = (FunctionSignature *)malloc(sizeof(FunctionSignature));
+    if (signature == NULL) {
+        fprintf(stderr,
+                "Semantic error at line %d: out of memory while recording function '%s'.\n",
+                yylineno,
+                name);
+        semantic_errors++;
+        return;
+    }
+
+    strncpy(signature->name, name, sizeof(signature->name) - 1);
+    signature->name[sizeof(signature->name) - 1] = '\0';
+    while (current != NULL && index < 32) {
+        signature->param_types[index++] = current->type;
+        current = current->next;
+    }
+    signature->param_count = index;
+    signature->return_type = return_type;
+    signature->next = function_signatures;
+    function_signatures = signature;
+}
+
 static SymbolType builtin_unary_return_type(const char *name, ExprList *arguments) {
     if (arguments == NULL || arguments->next != NULL) {
         fprintf(stderr,
@@ -965,6 +1002,9 @@ static void begin_function_definition(char *name, ParamNode *parameters, SymbolT
     function_declared_return_stack[function_stack_top] = declared_return_type;
     ++function_stack_top;
 
+    /* Register the signature before parsing the body so self-calls work. */
+    register_function_signature(name, parameters, declared_return_type);
+
     enter_scope();
     while (current != NULL) {
         declare_identifier(current->name, current->type);
@@ -973,11 +1013,10 @@ static void begin_function_definition(char *name, ParamNode *parameters, SymbolT
 }
 
 static SymbolType finish_function_definition(ParamNode *parameters) {
-    FunctionSignature *signature;
-    ParamNode *current;
-    int index = 0;
     SymbolType observed_return_type;
     SymbolType declared_return_type;
+
+    (void)parameters;
 
     leave_scope();
 
@@ -1011,31 +1050,6 @@ static SymbolType finish_function_definition(ParamNode *parameters) {
                 symbol_type_name(observed_return_type),
                 symbol_type_name(declared_return_type));
         semantic_errors++;
-    }
-
-    signature = find_function_signature(function_name_stack[function_stack_top - 1]);
-    if (signature != NULL) {
-        fprintf(stderr,
-                "Semantic error at line %d: function '%s' is already defined.\n",
-                yylineno,
-                function_name_stack[function_stack_top - 1]);
-        semantic_errors++;
-    } else {
-        signature = (FunctionSignature *)malloc(sizeof(FunctionSignature));
-        if (signature != NULL) {
-            strncpy(signature->name, function_name_stack[function_stack_top - 1], sizeof(signature->name) - 1);
-            signature->name[sizeof(signature->name) - 1] = '\0';
-            signature->param_count = 0;
-            current = parameters;
-            while (current != NULL && index < 32) {
-                signature->param_types[index++] = current->type;
-                current = current->next;
-            }
-            signature->param_count = index;
-            signature->return_type = declared_return_type;
-            signature->next = function_signatures;
-            function_signatures = signature;
-        }
     }
 
     --function_stack_top;

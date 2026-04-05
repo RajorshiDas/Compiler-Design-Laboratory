@@ -10,22 +10,30 @@ It supports:
 
 - variable declarations
 - assignments
-- arithmetic expressions
+- arithmetic and logic expressions
 - `read(...)`
-- `write(...)`
+- multi-argument `write(...)`
+- user-defined functions
+- recursive function calls
+- `chk / else_try / then`
+- `repeat`, `until`, and `doing ... until`
+- `decide / when / otherwise`
 - basic semantic checking
-- simple syntax error recovery
+- AST optimization, IR generation, C code generation, and interpretation
 
 ## Project Files
 
 - `scanner.l` - Flex lexer specification
-- `parser.y` - Bison parser specification
-- `symtab.h` - symbol table declarations and data types
-- `symtab.c` - symbol table implementation and semantic checks
-- `main.c` - driver program that calls `yyparse()`
+- `parser.y` - Bison parser specification and semantic checks
+- `ast.h` / `ast.c` - AST node types and constructors
+- `symtab.h` / `symtab.c` - symbol table, scope handling, and type/value utilities
+- `optimize.h` / `optimize.c` - simple AST optimizations
+- `ir.h` / `ir.c` - three-address-style IR generation and printing
+- `codegen.h` / `codegen.c` - C source generation
+- `interpreter.h` / `interpreter.c` - direct AST execution
+- `main.c` - driver program that runs the full pipeline
 
 Generated files after build:
-
 - `parser.tab.c`
 - `parser.tab.h`
 - `lex.yy.c`
@@ -134,14 +142,14 @@ Build:
 
 ```bash
 bison -d -o parser.tab.c parser.y
-flex -o lex.yy.c scanner.l
-gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c -lfl
+flex scanner.l
+gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c -lm -lfl
 ```
 
 If your Flex installation works without `-lfl`, this may also work:
 
 ```bash
-gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c
+gcc -Wall -Wextra -o compiler parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c -lm
 ```
 
 ### Windows with MinGW or MSYS2
@@ -152,8 +160,8 @@ Build:
 
 ```powershell
 bison -d -o parser.tab.c parser.y
-flex -o lex.yy.c scanner.l
-gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c
+flex scanner.l
+gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c -lm
 ```
 
 ### Clean Rebuild
@@ -163,8 +171,8 @@ If generated files already exist and you want a fresh rebuild:
 ```powershell
 Remove-Item parser.tab.c, parser.tab.h, lex.yy.c, compiler.exe -ErrorAction SilentlyContinue
 bison -d -o parser.tab.c parser.y
-flex -o lex.yy.c scanner.l
-gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c
+flex scanner.l
+gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c interpreter.c codegen.c optimize.c main.c -lm
 ```
 
 ## How To Run
@@ -320,7 +328,7 @@ Fix:
 
 ```powershell
 bison -d -o parser.tab.c parser.y
-flex -o lex.yy.c scanner.l
+flex scanner.l
 ```
 
 ### Error: many `bad character: #` messages from `scanner.l` or `lex.yy.c`
@@ -338,7 +346,7 @@ flex lex.yy.c
 Correct:
 
 ```powershell
-flex -o lex.yy.c scanner.l
+flex scanner.l
 ```
 
 ### Error: undeclared variable
@@ -392,3 +400,5 @@ It is suitable for demonstrating:
 - syntax error recovery
 - symbol table usage
 - simple semantic analysis
+
+

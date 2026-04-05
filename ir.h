@@ -4,6 +4,8 @@
 #include "ast.h"
 
 typedef enum IROpcode {
+    IR_FUNCTION_BEGIN,
+    IR_FUNCTION_END,
     IR_LABEL,
     IR_GOTO,
     IR_IF_FALSE_GOTO,

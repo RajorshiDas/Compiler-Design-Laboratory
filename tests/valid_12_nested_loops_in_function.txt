@@ -1,0 +1,32 @@
+@@ Valid test: nested loops inside a user-defined function.
+@@ Expected interpreter output:
+@@ pairs = 6
+
+#load mathLib.fx
+start() -> empty
+{
+    num result;
+
+    fx countPairs(num rows, num cols) -> num
+    {
+        num i = 1;
+        num j;
+        num total = 0;
+
+        repeat(i, i <= rows, i + 1)
+        {
+            j = 1;
+            repeat(j, j <= cols, j + 1)
+            {
+                total = total + 1;
+            }
+        }
+
+        send total;
+    }
+
+    result = countPairs(2, 3);
+    write("pairs = ", result);
+
+    send 0;
+}

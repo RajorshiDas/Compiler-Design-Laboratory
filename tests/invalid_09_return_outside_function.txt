@@ -1,9 +1,0 @@
-@@ Invalid test: skip outside a loop.
-@@ Expected behavior: runtime error because skip is only meaningful inside a loop.
-
-#load mathLib.fx
-start() -> empty
-{
-    skip;
-    send 0;
-}

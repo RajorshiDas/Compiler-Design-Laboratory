@@ -1,3 +1,0 @@
-num x;
-x = foo(1);
-write(x);

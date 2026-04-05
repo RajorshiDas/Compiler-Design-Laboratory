@@ -13,8 +13,9 @@ The suite includes:
 - `repeat`, `until`, and `doing ... until`
 - `decide / when / otherwise`
 - user-defined functions with `-> returnType`
+- recursive functions
+- nested loops inside function bodies
 - builtin math helpers like `power()` and `squart()`
-- semantic, syntax, lexical, and runtime error cases
 
 ## Valid Test Cases
 
@@ -75,47 +76,15 @@ Focus:
 Focus:
 - integrated program with functions, loops, and decide
 
-## Invalid / Error Test Cases
-
-### `invalid_01_undeclared_variable.txt`
+### `valid_11_recursion.txt`
 Focus:
-- undeclared identifier use
+- self-recursive function calls
+- base case and recursive case with `send`
 
-### `invalid_02_duplicate_declaration.txt`
+### `valid_12_nested_loops_in_function.txt`
 Focus:
-- duplicate declaration in one scope
-
-### `invalid_03_invalid_assignment.txt`
-Focus:
-- incompatible assignment and invalid arithmetic
-
-### `invalid_04_syntax_error.txt`
-Focus:
-- malformed `repeat(...)`
-
-### `invalid_05_invalid_token.txt`
-Focus:
-- lexical rejection of unsupported symbols
-
-### `invalid_06_division_by_zero.txt`
-Focus:
-- runtime division-by-zero detection
-
-### `invalid_07_uninitialized_variable.txt`
-Focus:
-- non-logic expression inside `chk`
-
-### `invalid_08_wrong_function_arguments.txt`
-Focus:
-- wrong function argument count
-
-### `invalid_09_return_outside_function.txt`
-Focus:
-- `skip` used outside a loop
-
-### `invalid_10_function_type_mismatch.txt`
-Focus:
-- function declared return type mismatch
+- nested `repeat` loops inside a user-defined function
+- function return after loop-based accumulation
 
 ## Build Command
 

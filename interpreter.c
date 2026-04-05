@@ -16,6 +16,7 @@ static int return_requested = 0;
 static int break_requested = 0;
 static int continue_requested = 0;
 static int loop_depth = 0;
+static int loop_control_floor = 0;
 static int function_call_depth = 0;
 static ExprResult return_value = { TYPE_INVALID, 0, {0} };
 static FunctionEntry *function_table = NULL;
@@ -591,6 +592,7 @@ static ExprResult execute_function_call(ExprNode *node) {
     ExprResult result = make_invalid_result();
     ExprResult saved_return_value = copy_expr_result(&return_value);
     int saved_return_requested = return_requested;
+    int saved_loop_control_floor = loop_control_floor;
     int scope_open = 0;
     int call_started = 0;
 
@@ -640,6 +642,7 @@ static ExprResult execute_function_call(ExprNode *node) {
 
     function_call_depth++;
     call_started = 1;
+    loop_control_floor = loop_depth;
     free_expr_result(&return_value);
     return_value = make_invalid_result();
     return_requested = 0;
@@ -661,6 +664,7 @@ cleanup:
         leave_scope();
     }
 
+    loop_control_floor = saved_loop_control_floor;
     free_expr_result(&return_value);
     return_value = saved_return_value;
     return_requested = saved_return_requested;
@@ -1125,14 +1129,14 @@ static int execute_statement_list(StmtNode *node) {
             case STMT_FUNCTION_DEF:
                 break;
             case STMT_SKIP:
-                if (loop_depth <= 0) {
+                if (loop_depth <= loop_control_floor) {
                     report_runtime_error("skip used outside a loop.");
                 } else {
                     continue_requested = 1;
                 }
                 break;
             case STMT_STOP:
-                if (loop_depth <= 0) {
+                if (loop_depth <= loop_control_floor) {
                     stop_requested = 1;
                 } else {
                     break_requested = 1;
@@ -1181,6 +1185,7 @@ int interpret_program(const Program *program) {
     break_requested = 0;
     continue_requested = 0;
     loop_depth = 0;
+    loop_control_floor = 0;
     function_call_depth = 0;
     clear_symbol_table();
     free_function_table();
@@ -1199,3 +1204,4 @@ int interpret_program(const Program *program) {
     return_value = make_invalid_result();
     return runtime_error_count;
 }
+

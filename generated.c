@@ -1,32 +1,31 @@
 #include <stdio.h>
 #include <math.h>
 
-long long square(long long x)
+long long countPairs(long long rows, long long cols);
+
+long long countPairs(long long rows, long long cols)
 {
-    return (x * x);
+    long long i = 1;
+    long long j;
+    long long total = 0;
+    for (; (i <= rows); i = (i + 1))
+    {
+        j = 1;
+        for (; (j <= cols); j = (j + 1))
+        {
+            total = (total + 1);
+        }
+    }
+    return total;
 }
 
 int main(void)
 {
-    long long i = 1;
-    long long value;
-    for (; (i <= 3); i = (i + 1))
-    {
-        value = square(i);
-        printf("%s", "square = ");
-        printf("%lld", value);
-        printf("\n");
-    }
-    if (i == 4)
-    {
-        printf("%s", "finished");
-        printf("\n");
-    }
-    else
-    {
-        printf("%s", "unexpected");
-        printf("\n");
-    }
+    long long result;
+    result = countPairs(2, 3);
+    printf("%s", "pairs = ");
+    printf("%lld", result);
+    printf("\n");
     return 0;
     return 0;
 }

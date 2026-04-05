@@ -1,5 +1,0 @@
-{
-    real x;
-    read(x);
-    write(x);
-}

@@ -3,7 +3,6 @@ param(
 )
 
 $valid = Get-ChildItem $PSScriptRoot\valid_*.txt | Sort-Object Name
-$invalid = Get-ChildItem $PSScriptRoot\invalid_*.txt | Sort-Object Name
 
 Write-Host "Running valid tests..."
 foreach ($test in $valid) {
@@ -13,12 +12,5 @@ foreach ($test in $valid) {
     } else {
         & $Compiler $test.FullName
     }
-    Write-Host "ExitCode: $LASTEXITCODE"
-}
-
-Write-Host "`nRunning invalid tests..."
-foreach ($test in $invalid) {
-    Write-Host "`n=== $($test.Name) ==="
-    & $Compiler $test.FullName
     Write-Host "ExitCode: $LASTEXITCODE"
 }

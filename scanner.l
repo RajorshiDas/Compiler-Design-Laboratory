@@ -4,6 +4,11 @@
 #include <string.h>
 #include "parser.tab.h"
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-label"
+#endif
+
 static char *copy_lexeme(void) {
     size_t length = strlen(yytext);
     char *text = (char *)malloc(length + 1);

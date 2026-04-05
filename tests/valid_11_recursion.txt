@@ -1,0 +1,24 @@
+@@ Valid test: recursive factorial function.
+@@ Expected interpreter output:
+@@ factorial = 120
+
+#load mathLib.fx
+start() -> empty
+{
+    num result;
+
+    fx factorial(num n) -> num
+    {
+        chk(n <= 1)
+            send 1;
+        end chk
+        then
+            send n * factorial(n - 1);
+        end then
+    }
+
+    result = factorial(5);
+    write("factorial = ", result);
+
+    send 0;
+}
