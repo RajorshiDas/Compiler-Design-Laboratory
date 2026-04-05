@@ -4,13 +4,20 @@
 
 int main(void)
 {
-    long long a = 1;
-    scanf("%lld", &a);
-    printf("%s", "Read value = ");
+    long long a = 10;
+    double r = 3.5;
+    int ok = 1;
+    char letter = 'Z';
+    char * msg = "hello";
     printf("%lld", a);
     printf("\n");
-    printf("%s", "Next value = ");
-    printf("%lld", (a + 1));
+    printf("%g", r);
+    printf("\n");
+    printf("%d", ok);
+    printf("\n");
+    printf("%c", letter);
+    printf("\n");
+    printf("%s", msg);
     printf("\n");
     return 0;
     return 0;
