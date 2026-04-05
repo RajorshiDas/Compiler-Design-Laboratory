@@ -19,69 +19,69 @@ The suite includes:
 
 ## Valid Test Cases
 
-### `valid_01_declarations.txt`
+### `t01_decl.txt`
 Focus:
 - report-style declarations
 - logic and char literals
 - basic output
 
-### `valid_02_assignments_expressions.txt`
+### `t02_expr.txt`
 Focus:
 - arithmetic precedence
 - modulus
 - XOR
 - absolute value
 
-### `valid_03_read_write.txt`
+### `t03_io.txt`
 Focus:
 - `read(identifier)`
 - multi-argument `write(...)`
 
-### `valid_04_conditionals.txt`
+### `t04_cond.txt`
 Focus:
 - `chk ... end chk`
 - chained `else_try ... end else_try`
 - `then ... end then`
 - logical operators
 
-### `valid_05_loops.txt`
+### `t05_loops.txt`
 Focus:
 - `repeat(init, condition, update)`
 - `until(condition)`
 - `skip` and `stop`
 
-### `valid_06_strings.txt`
+### `t06_text.txt`
 Focus:
 - text literals
 - mixed string output in `write`
 
-### `valid_07_functions.txt`
+### `t07_funcs.txt`
 Focus:
 - `fx name(...) -> type`
 - `send expr;`
 - builtin math helpers
 
-### `valid_08_decide.txt`
+### `t08_decide.txt`
 Focus:
 - `decide selector`
 - `when(value) => ...`
 - `otherwise => ...`
 
-### `valid_09_scope_blocks.txt`
+### `t09_scope.txt`
 Focus:
 - nested block scope
 - variable shadowing
 
-### `valid_10_full_program.txt`
+### `t10_full.txt`
 Focus:
 - integrated program with functions, loops, and decide
 
-### `valid_11_recursion.txt`
+### `t11_rec.txt`
 Focus:
 - self-recursive function calls
 - base case and recursive case with `send`
 
-### `valid_12_nested_loops_in_function.txt`
+### `t12_nested.txt`
 Focus:
 - nested `repeat` loops inside a user-defined function
 - function return after loop-based accumulation
@@ -97,7 +97,7 @@ gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c inte
 ## Run One Test
 
 ```powershell
-.\compiler.exe tests\valid_05_loops.txt
+.\compiler.exe tests\t05_loops.txt
 ```
 
 ## Batch Run
@@ -105,3 +105,4 @@ gcc -Wall -Wextra -o compiler.exe parser.tab.c lex.yy.c symtab.c ast.c ir.c inte
 ```powershell
 powershell -ExecutionPolicy Bypass -File tests\run_tests.ps1
 ```
+
